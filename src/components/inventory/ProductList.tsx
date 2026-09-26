@@ -13,6 +13,10 @@ import {
   Wrench,
   CheckCircle2,
   Layers,
+  Flame,
+  Tag,
+  Globe,
+  RotateCcw,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Product } from '../../types';
@@ -20,6 +24,8 @@ import { formatBDT, exportToCSV } from '../../utils/formatters';
 import { ProductFormModal } from './ProductFormModal';
 import { StockAdjustmentModal } from './StockAdjustmentModal';
 import { CategoryModal } from './CategoryModal';
+import { BrandModal } from './BrandModal';
+import { CountryModal } from './CountryModal';
 
 export const ProductList: React.FC = () => {
   const {
@@ -27,6 +33,7 @@ export const ProductList: React.FC = () => {
     categories,
     brands,
     countries,
+    sales,
     deleteProduct,
     currentUser,
     metrics,
@@ -38,15 +45,33 @@ export const ProductList: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedBrand, setSelectedBrand] = useState<string>('ALL');
   const [stockStatus, setStockStatus] = useState<'ALL' | 'LOW' | 'OUT'>('ALL');
+  const [isTopSellingFilter, setIsTopSellingFilter] = useState(false);
 
   // Modals state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
+  const [isCountryModalOpen, setIsCountryModalOpen] = useState(false);
   const [productToEdit, setProductToEdit] = useState<Product | null>(null);
   const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null);
 
+  // Calculate sales stats per product
+  const productSalesMap = useMemo(() => {
+    const map = new Map<string, { totalSoldQty: number; totalRevenue: number }>();
+    sales.forEach((s) => {
+      s.items?.forEach((it) => {
+        const existing = map.get(it.productId) || { totalSoldQty: 0, totalRevenue: 0 };
+        map.set(it.productId, {
+          totalSoldQty: existing.totalSoldQty + (it.quantity || 0),
+          totalRevenue: existing.totalRevenue + (it.total || 0),
+        });
+      });
+    });
+    return map;
+  }, [sales]);
+
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
+    const list = products.filter((p) => {
       const q = search.toLowerCase();
       const matchSearch =
         p.name.toLowerCase().includes(q) ||
@@ -72,7 +97,17 @@ export const ProductList: React.FC = () => {
 
       return matchSearch && matchCategory && matchBrand && matchStock;
     });
-  }, [products, search, selectedCategory, selectedBrand, stockStatus]);
+
+    if (isTopSellingFilter) {
+      return list.sort((a, b) => {
+        const soldA = productSalesMap.get(a.id)?.totalSoldQty || 0;
+        const soldB = productSalesMap.get(b.id)?.totalSoldQty || 0;
+        return soldB - soldA;
+      });
+    }
+
+    return list;
+  }, [products, search, selectedCategory, selectedBrand, stockStatus, isTopSellingFilter, productSalesMap]);
 
   if (!currentUser) return null;
 

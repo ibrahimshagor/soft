@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="rmGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Rounded Base Background -->
+  <rect width="64" height="64" rx="16" fill="url(#bgGrad)"/>
+  <rect x="1" y="1" width="62" height="62" rx="15" stroke="#f59e0b" stroke-opacity="0.3" stroke-width="2"/>
+  
+  <!-- Gear & Automotive Elements -->
+  <g transform="translate(32,32)">
+    <!-- Central Gear Ring -->
+    <circle r="20" fill="none" stroke="url(#rmGrad)" stroke-width="4" stroke-dasharray="8 3"/>
+    <circle r="14" fill="#0f172a" stroke="#f59e0b" stroke-width="2"/>
+    
+    <!-- Crossed Wrench / Spark Plug Design -->
+    <path d="M-8,-8 L8,8 M-8,8 L8,-8" stroke="#f59e0b" stroke-width="3.5" stroke-linecap="round"/>
+    <circle r="4" fill="#f59e0b"/>
+    
+    <!-- Speed Wings / RM Letter Accent -->
+    <path d="M-18,0 L-23,-4 L-21,4 Z M18,0 L23,-4 L21,4 Z" fill="#f59e0b"/>
+  </g>
+</svg>

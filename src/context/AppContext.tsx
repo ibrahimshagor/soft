@@ -102,10 +102,16 @@ interface AppContextType {
   deleteCategory: (id: string) => void;
   brands: Brand[];
   addBrand: (brand: Omit<Brand, 'id'>) => void;
+  updateBrand: (id: string, updates: Partial<Brand>) => void;
+  deleteBrand: (id: string) => void;
   countries: Country[];
   addCountry: (country: Omit<Country, 'id'>) => void;
+  updateCountry: (id: string, updates: Partial<Country>) => void;
+  deleteCountry: (id: string) => void;
   expenseCategories: ExpenseCategory[];
   addExpenseCategory: (cat: Omit<ExpenseCategory, 'id'>) => void;
+  updateExpenseCategory: (id: string, updates: Partial<ExpenseCategory>) => void;
+  deleteExpenseCategory: (id: string) => void;
   paymentMethods: PaymentMethod[];
   addPaymentMethod: (method: Omit<PaymentMethod, 'id'>) => PaymentMethod;
   updatePaymentMethod: (id: string, updates: Partial<PaymentMethod>) => void;
@@ -152,6 +158,7 @@ interface AppContextType {
   accounts: Account[];
   addAccount: (acc: Omit<Account, 'id'>) => void;
   updateAccount: (id: string, updates: Partial<Account>) => void;
+  deleteAccount: (id: string) => void;
   transferFunds: (fromAccountId: string, toAccountId: string, amount: number, notes?: string) => void;
   dailyClosings: DailyClosing[];
   recordDailyClosing: (closing: Omit<DailyClosing, 'closedBy' | 'closedAt'>) => void;
@@ -218,6 +225,8 @@ interface AppContextType {
   // Expenses & Income
   expenses: Expense[];
   addExpense: (expense: Omit<Expense, 'id' | 'accountName' | 'enteredBy' | 'createdAt'>) => void;
+  updateExpense: (id: string, updates: Partial<Expense>) => void;
+  deleteExpense: (id: string) => void;
   recordExpense: (data: { categoryId: string; amount: number; accountId: string; voucherNo?: string; payee?: string; description: string; }) => void;
   incomes: Income[];
   addIncome: (income: Omit<Income, 'id' | 'accountName' | 'enteredBy' | 'createdAt'>) => void;
@@ -360,13 +369,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   });
   const [users, setUsers] = useState<User[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_users`);
-    const list: User[] = saved ? JSON.parse(saved) : initialUsers;
-    return list.map((u) => {
-      if (u.id === 'user-1' || u.name === 'Engr. Rezaul Karim') {
-        return { ...u, name: 'আব্দুর রহিম রনি' };
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch (e) {
+        // fallback
       }
-      return u;
-    });
+    }
+    return initialUsers;
   });
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const savedUserId = localStorage.getItem(`${STORAGE_KEY}_current_user_id`);
@@ -696,6 +709,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     });
 
+    // Listen to Users in real-time
+    const unsubUsers = subscribeToCollection<User>('users', (cloudUsers) => {
+      if (isMounted && Array.isArray(cloudUsers) && cloudUsers.length > 0) {
+        setUsers(cloudUsers);
+        if (currentUser) {
+          const matched = cloudUsers.find((u) => u.id === currentUser.id);
+          if (matched) {
+            setCurrentUser(matched);
+          }
+        }
+      }
+    });
+
     // Listen to Business Profile in real-time
     const unsubProfile = subscribeToDoc<BusinessProfile>('settings', 'businessProfile', (cloudProfile) => {
       if (isMounted && cloudProfile && cloudProfile.businessName) {
@@ -715,6 +741,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       unsubLoanParties();
       unsubLoanRecords();
       unsubPayments();
+      unsubUsers();
       unsubProfile();
     };
   }, []);
@@ -902,13 +929,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addAuditLog('PERMISSION_UPDATED', 'User Management', `Updated permissions for user ID ${userId}`);
   };
 
-  const syncAppMastersToFirestore = (updatedCats = categories, updatedBrands = brands, updatedMethods = paymentMethods) => {
+  const syncAppMastersToFirestore = (
+    updatedCats = categories,
+    updatedBrands = brands,
+    updatedMethods = paymentMethods,
+    updatedCountries = countries,
+    updatedExpCats = expenseCategories
+  ) => {
     setFirestoreDoc('settings', 'appMasters', {
       categories: updatedCats,
       brands: updatedBrands,
       paymentMethods: updatedMethods,
-      expenseCategories,
-      countries,
+      expenseCategories: updatedExpCats,
+      countries: updatedCountries,
     });
   };
 
@@ -916,21 +949,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newCat: Category = { ...cat, id: 'cat-' + Date.now() };
     const list = [...categories, newCat];
     setCategories(list);
-    syncAppMastersToFirestore(list, brands, paymentMethods);
+    syncAppMastersToFirestore(list, brands, paymentMethods, countries, expenseCategories);
     addAuditLog('CATEGORY_ADDED', 'Inventory Masters', `Added category ${newCat.name}`);
   };
 
   const updateCategory = (id: string, updates: Partial<Category>) => {
     const list = categories.map((c) => (c.id === id ? { ...c, ...updates } : c));
     setCategories(list);
-    syncAppMastersToFirestore(list, brands, paymentMethods);
+    syncAppMastersToFirestore(list, brands, paymentMethods, countries, expenseCategories);
     addAuditLog('CATEGORY_UPDATED', 'Inventory Masters', `Updated category ID ${id}`);
   };
 
   const deleteCategory = (id: string) => {
     const list = categories.filter((c) => c.id !== id);
     setCategories(list);
-    syncAppMastersToFirestore(list, brands, paymentMethods);
+    syncAppMastersToFirestore(list, brands, paymentMethods, countries, expenseCategories);
     addAuditLog('CATEGORY_DELETED', 'Inventory Masters', `Deleted category ID ${id}`);
   };
 
@@ -938,19 +971,69 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newBrand: Brand = { ...brand, id: 'br-' + Date.now() };
     const list = [...brands, newBrand];
     setBrands(list);
-    syncAppMastersToFirestore(categories, list, paymentMethods);
+    syncAppMastersToFirestore(categories, list, paymentMethods, countries, expenseCategories);
     addAuditLog('BRAND_ADDED', 'Inventory Masters', `Added brand ${newBrand.name}`);
+  };
+
+  const updateBrand = (id: string, updates: Partial<Brand>) => {
+    const list = brands.map((b) => (b.id === id ? { ...b, ...updates } : b));
+    setBrands(list);
+    syncAppMastersToFirestore(categories, list, paymentMethods, countries, expenseCategories);
+    addAuditLog('BRAND_UPDATED', 'Inventory Masters', `Updated brand ID ${id}`);
+  };
+
+  const deleteBrand = (id: string) => {
+    if (brands.length <= 1) return;
+    const list = brands.filter((b) => b.id !== id);
+    setBrands(list);
+    syncAppMastersToFirestore(categories, list, paymentMethods, countries, expenseCategories);
+    addAuditLog('BRAND_DELETED', 'Inventory Masters', `Deleted brand ID ${id}`);
   };
 
   const addCountry = (country: Omit<Country, 'id'>) => {
     const newCountry: Country = { ...country, id: 'cnt-' + Date.now() };
-    setCountries((prev) => [...prev, newCountry]);
+    const list = [...countries, newCountry];
+    setCountries(list);
+    syncAppMastersToFirestore(categories, brands, paymentMethods, list, expenseCategories);
     addAuditLog('COUNTRY_ADDED', 'Inventory Masters', `Added origin country ${newCountry.name}`);
+  };
+
+  const updateCountry = (id: string, updates: Partial<Country>) => {
+    const list = countries.map((c) => (c.id === id ? { ...c, ...updates } : c));
+    setCountries(list);
+    syncAppMastersToFirestore(categories, brands, paymentMethods, list, expenseCategories);
+    addAuditLog('COUNTRY_UPDATED', 'Inventory Masters', `Updated origin country ID ${id}`);
+  };
+
+  const deleteCountry = (id: string) => {
+    if (countries.length <= 1) return;
+    const list = countries.filter((c) => c.id !== id);
+    setCountries(list);
+    syncAppMastersToFirestore(categories, brands, paymentMethods, list, expenseCategories);
+    addAuditLog('COUNTRY_DELETED', 'Inventory Masters', `Deleted origin country ID ${id}`);
   };
 
   const addExpenseCategory = (cat: Omit<ExpenseCategory, 'id'>) => {
     const newCat: ExpenseCategory = { ...cat, id: 'exp-cat-' + Date.now() };
-    setExpenseCategories((prev) => [...prev, newCat]);
+    const list = [...expenseCategories, newCat];
+    setExpenseCategories(list);
+    syncAppMastersToFirestore(categories, brands, paymentMethods, countries, list);
+    addAuditLog('EXPENSE_CATEGORY_ADDED', 'Expense Masters', `Added expense category ${newCat.name}`);
+  };
+
+  const updateExpenseCategory = (id: string, updates: Partial<ExpenseCategory>) => {
+    const list = expenseCategories.map((c) => (c.id === id ? { ...c, ...updates } : c));
+    setExpenseCategories(list);
+    syncAppMastersToFirestore(categories, brands, paymentMethods, countries, list);
+    addAuditLog('EXPENSE_CATEGORY_UPDATED', 'Expense Masters', `Updated expense category ID ${id}`);
+  };
+
+  const deleteExpenseCategory = (id: string) => {
+    if (expenseCategories.length <= 1) return;
+    const list = expenseCategories.filter((c) => c.id !== id);
+    setExpenseCategories(list);
+    syncAppMastersToFirestore(categories, brands, paymentMethods, countries, list);
+    addAuditLog('EXPENSE_CATEGORY_DELETED', 'Expense Masters', `Deleted expense category ID ${id}`);
   };
 
   const addPaymentMethod = (methodData: Omit<PaymentMethod, 'id'>): PaymentMethod => {
@@ -1151,7 +1234,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
     if (updatedAcc) {
       setFirestoreDoc('accounts', id, updatedAcc);
+      addAuditLog('ACCOUNT_UPDATED', 'Accounts', `Updated account ${(updatedAcc as Account).name}`);
     }
+  };
+
+  const deleteAccount = (id: string) => {
+    const acc = accounts.find((a) => a.id === id);
+    if (!acc) return;
+    setAccounts((prev) => prev.filter((a) => a.id !== id));
+    deleteFirestoreDoc('accounts', id);
+    addAuditLog('ACCOUNT_DELETED', 'Accounts', `Deleted account ${acc.name}`);
   };
 
   const transferFunds = (fromAccountId: string, toAccountId: string, amount: number, notes?: string) => {
@@ -1220,6 +1312,78 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       'Expenses',
       `Recorded expense ৳${expenseData.amount} for ${expenseData.categoryName}: ${expenseData.description}`
     );
+  };
+
+  const updateExpense = (id: string, updates: Partial<Expense>) => {
+    const existing = expenses.find((e) => e.id === id);
+    if (!existing) return;
+
+    // Adjust account balances if account or amount changed
+    const oldAmount = existing.amount || 0;
+    const oldAccountId = existing.accountId;
+    const newAmount = updates.amount !== undefined ? updates.amount : oldAmount;
+    const newAccountId = updates.accountId || oldAccountId;
+
+    if (oldAccountId === newAccountId) {
+      const diff = newAmount - oldAmount;
+      if (diff !== 0) {
+        const acc = accounts.find((a) => a.id === oldAccountId);
+        if (acc) {
+          updateAccount(acc.id, { balance: acc.balance - diff });
+        }
+      }
+    } else {
+      // Refund old account
+      const oldAcc = accounts.find((a) => a.id === oldAccountId);
+      if (oldAcc) {
+        updateAccount(oldAcc.id, { balance: oldAcc.balance + oldAmount });
+      }
+      // Deduct from new account
+      const newAcc = accounts.find((a) => a.id === newAccountId);
+      if (newAcc) {
+        updateAccount(newAcc.id, { balance: newAcc.balance - newAmount });
+      }
+    }
+
+    let updatedExp: Expense | null = null;
+    setExpenses((prev) =>
+      prev.map((e) => {
+        if (e.id === id) {
+          const cat = updates.categoryId ? expenseCategories.find((c) => c.id === updates.categoryId) : null;
+          const targetAcc = updates.accountId ? accounts.find((a) => a.id === updates.accountId) : null;
+          updatedExp = {
+            ...e,
+            ...updates,
+            categoryName: cat ? cat.name : (updates.categoryName || e.categoryName),
+            accountName: targetAcc ? targetAcc.name : e.accountName,
+          };
+          return updatedExp;
+        }
+        return e;
+      })
+    );
+
+    if (updatedExp) {
+      setFirestoreDoc('expenses', id, updatedExp);
+      addAuditLog('EXPENSE_UPDATED', 'Expenses', `Updated expense voucher #${(updatedExp as any).voucherNo || id}`);
+    }
+  };
+
+  const deleteExpense = (id: string) => {
+    const existing = expenses.find((e) => e.id === id);
+    if (!existing) return;
+
+    // Refund account
+    if (existing.accountId && existing.amount > 0) {
+      const acc = accounts.find((a) => a.id === existing.accountId);
+      if (acc) {
+        updateAccount(acc.id, { balance: acc.balance + existing.amount });
+      }
+    }
+
+    setExpenses((prev) => prev.filter((e) => e.id !== id));
+    deleteFirestoreDoc('expenses', id);
+    addAuditLog('EXPENSE_DELETED', 'Expenses', `Deleted expense voucher ৳${existing.amount}`);
   };
 
   const recordExpense = (data: {
@@ -2664,15 +2828,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateUser = (updatedUser: User) => {
-    setUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
+    setUsers((prev) => {
+      const next = prev.map((u) => (u.id === updatedUser.id ? updatedUser : u));
+      localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(next));
+      return next;
+    });
+    setFirestoreDoc('users', updatedUser.id, updatedUser);
     if (currentUser?.id === updatedUser.id) {
       setCurrentUser(updatedUser);
+      localStorage.setItem(`${STORAGE_KEY}_current_user_id`, updatedUser.id);
     }
+    addAuditLog('USER_UPDATED', 'User Management', `Updated user ${updatedUser.name} (${updatedUser.role})`);
   };
 
   const deleteUser = (userId: string) => {
     if (users.length <= 1) return;
-    setUsers((prev) => prev.filter((u) => u.id !== userId));
+    setUsers((prev) => {
+      const next = prev.filter((u) => u.id !== userId);
+      localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(next));
+      return next;
+    });
+    deleteFirestoreDoc('users', userId);
+    addAuditLog('USER_DELETED', 'User Management', `Deleted user ID ${userId}`);
   };
 
   const logout = () => {
@@ -2844,10 +3021,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         deleteCategory,
         brands,
         addBrand,
+        updateBrand,
+        deleteBrand,
         countries,
         addCountry,
+        updateCountry,
+        deleteCountry,
         expenseCategories,
         addExpenseCategory,
+        updateExpenseCategory,
+        deleteExpenseCategory,
         paymentMethods,
         addPaymentMethod,
         updatePaymentMethod,
@@ -2876,6 +3059,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         accounts,
         addAccount,
         updateAccount,
+        deleteAccount,
         transferFunds,
         dailyClosings,
         recordDailyClosing,
@@ -2900,6 +3084,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         expenses,
         addExpense,
+        updateExpense,
+        deleteExpense,
         recordExpense,
         incomes,
         addIncome,

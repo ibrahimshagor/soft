@@ -108,7 +108,7 @@ export interface Brand {
 export interface Country {
   id: string;
   name: string;
-  nameBn: string;
+  nameBn?: string;
   flag?: string;
 }
 
@@ -169,6 +169,8 @@ export interface Account {
   bankBranch?: string;
   accountNumber?: string;
   accountHolder?: string;
+  routingNumber?: string;
+  notes?: string;
   balance: number;
   isDefault?: boolean;
 }
@@ -298,7 +300,7 @@ export interface PaymentRecord {
 export interface ExpenseCategory {
   id: string;
   name: string;
-  nameBn: string;
+  nameBn?: string;
 }
 
 export interface Expense {

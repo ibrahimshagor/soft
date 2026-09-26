@@ -20,6 +20,8 @@ import { Product, VehicleCompatibility, Category } from '../../types';
 import { formatBDT } from '../../utils/formatters';
 import { compressAndResizeImage, formatFileSize } from '../../utils/imageCompressor';
 import { CategoryModal } from './CategoryModal';
+import { BrandModal } from './BrandModal';
+import { CountryModal } from './CountryModal';
 
 interface ProductFormModalProps {
   isOpen: boolean;
@@ -61,6 +63,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionNotice, setCompressionNotice] = useState<string | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
+  const [isCountryModalOpen, setIsCountryModalOpen] = useState(false);
 
   // Helper to generate a unique SKU based on selected category prefix
   const generateSkuForCategory = (catId: string) => {
@@ -354,30 +358,52 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Manufacturer / Brand *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-semibold text-slate-700 dark:text-slate-300">
+                    Manufacturer / Brand *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsBrandModalOpen(true)}
+                    className="text-[10px] text-amber-600 dark:text-amber-400 font-bold hover:underline flex items-center gap-0.5"
+                    title="নতুন ব্র্যান্ড তৈরি, এডিট বা ডিলিট করুন"
+                  >
+                    <Tag className="w-2.5 h-2.5" />
+                    <span>{language === 'bn' ? '+ ব্র্যান্ড পরিচালনা' : '+ Manage'}</span>
+                  </button>
+                </div>
                 <select
                   value={brandId}
                   onChange={(e) => setBrandId(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium"
                 >
                   {brands.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {b.name} ({b.origin})
+                      {b.name} ({b.origin || 'Global'})
                     </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Country of Origin *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-semibold text-slate-700 dark:text-slate-300">
+                    Country of Origin *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsCountryModalOpen(true)}
+                    className="text-[10px] text-blue-600 dark:text-blue-400 font-bold hover:underline flex items-center gap-0.5"
+                    title="নতুন দেশ যোগ, এডিট বা ডিলিট করুন"
+                  >
+                    <Globe className="w-2.5 h-2.5" />
+                    <span>{language === 'bn' ? '+ দেশ পরিচালনা' : '+ Manage'}</span>
+                  </button>
+                </div>
                 <select
                   value={originCountryId}
                   onChange={(e) => setOriginCountryId(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium"
                 >
                   {countries.map((cnt) => (
                     <option key={cnt.id} value={cnt.id}>
@@ -778,6 +804,30 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             onClose={() => setIsCategoryModalOpen(false)}
             onCategoryCreated={(newCat) => {
               handleCategoryChange(newCat.id);
+            }}
+          />
+        )}
+
+        {/* Brand Management Modal */}
+        {isBrandModalOpen && (
+          <BrandModal
+            isOpen={isBrandModalOpen}
+            onClose={() => setIsBrandModalOpen(false)}
+            onSelectBrand={(newBrandId) => {
+              setBrandId(newBrandId);
+              setIsBrandModalOpen(false);
+            }}
+          />
+        )}
+
+        {/* Country Management Modal */}
+        {isCountryModalOpen && (
+          <CountryModal
+            isOpen={isCountryModalOpen}
+            onClose={() => setIsCountryModalOpen(false)}
+            onSelectCountry={(newCountryId) => {
+              setOriginCountryId(newCountryId);
+              setIsCountryModalOpen(false);
             }}
           />
         )}
