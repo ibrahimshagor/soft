@@ -1,0 +1,6 @@
+{
+  "name": "RM AutoManage - Automobile Parts Business Management",
+  "description": "Complete Automobile Parts Business Management System for RM Automobiles - Inventory, Sales, Purchases, Customer & Supplier Ledgers, Accounts, WhatsApp Invoicing, and Financial Reports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
