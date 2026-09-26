@@ -7,18 +7,25 @@ import { formatBDT } from '../../utils/formatters';
 interface NewExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialAccountId?: string;
 }
 
-export const NewExpenseModal: React.FC<NewExpenseModalProps> = ({ isOpen, onClose }) => {
+export const NewExpenseModal: React.FC<NewExpenseModalProps> = ({ isOpen, onClose, initialAccountId }) => {
   const { accounts, expenseCategories, recordExpense, t } = useApp();
 
   const [categoryId, setCategoryId] = useState<string>(expenseCategories[0]?.id || '');
   const [amount, setAmount] = useState<number>(0);
-  const [accountId, setAccountId] = useState<string>(accounts[0]?.id || '');
+  const [accountId, setAccountId] = useState<string>(initialAccountId || accounts[0]?.id || '');
   const [voucherNo, setVoucherNo] = useState<string>('');
   const [payee, setPayee] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
+
+  React.useEffect(() => {
+    if (initialAccountId) {
+      setAccountId(initialAccountId);
+    }
+  }, [initialAccountId, isOpen]);
 
   if (!isOpen) return null;
 

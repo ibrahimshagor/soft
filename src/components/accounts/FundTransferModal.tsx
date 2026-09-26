@@ -6,13 +6,26 @@ import { formatBDT } from '../../utils/formatters';
 interface FundTransferModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialFromAccountId?: string;
 }
 
-export const FundTransferModal: React.FC<FundTransferModalProps> = ({ isOpen, onClose }) => {
+export const FundTransferModal: React.FC<FundTransferModalProps> = ({ isOpen, onClose, initialFromAccountId }) => {
   const { accounts, transferFunds } = useApp();
 
-  const [fromAccountId, setFromAccountId] = useState<string>(accounts[0]?.id || '');
-  const [toAccountId, setToAccountId] = useState<string>(accounts[1]?.id || '');
+  const [fromAccountId, setFromAccountId] = useState<string>(
+    initialFromAccountId || accounts[0]?.id || ''
+  );
+  const [toAccountId, setToAccountId] = useState<string>(
+    accounts.find((a) => a.id !== (initialFromAccountId || accounts[0]?.id))?.id || accounts[1]?.id || ''
+  );
+
+  React.useEffect(() => {
+    if (initialFromAccountId) {
+      setFromAccountId(initialFromAccountId);
+      const other = accounts.find((a) => a.id !== initialFromAccountId);
+      if (other) setToAccountId(other.id);
+    }
+  }, [initialFromAccountId, isOpen]);
   const [amount, setAmount] = useState<number>(0);
   const [notes, setNotes] = useState<string>('Cash deposit to bank account');
   const [errorMsg, setErrorMsg] = useState<string>('');

@@ -27,11 +27,11 @@ export const ShareAccountWhatsAppModal: React.FC<ShareAccountWhatsAppModalProps>
     const companyPhone = businessProfile.whatsappNumber || businessProfile.phone || '';
 
     if (account.type === 'bank') {
-      return `🏛️ *ব্যাংক একাউন্ট বিবরণী (Bank Account Details)*\n━━━━━━━━━━━━━━━━━━━━\n🏦 *ব্যাংকের নাম:* ${account.bankName || account.name}\n🏷️ *একাউন্টের নাম:* ${account.name}\n${account.accountHolder ? `👤 *হোল্ডার:* ${account.accountHolder}\n` : ''}🔢 *একাউন্ট নাম্বার:* ${account.accountNumber || 'N/A'}\n${account.bankBranch || account.branch ? `📍 *শাখা / ব্রাঞ্চ:* ${account.bankBranch || account.branch}\n` : ''}${account.routingNumber ? `🌐 *রাউটিং নাম্বার:* ${account.routingNumber}\n` : ''}━━━━━━━━━━━━━━━━━━━━\n📌 *প্রতিষ্ঠান:* ${company}${companyPhone ? `\n📞 *যোগাযোগ:* ${companyPhone}` : ''}`;
+      return `🏛️ *ব্যাংক একাউন্ট বিবরণী (Bank Account Details)*\n━━━━━━━━━━━━━━━━━━━━\n🏦 *ব্যাংকের নাম:* ${account.bankName || account.name}\n🏷️ *একাউন্টের নাম:* ${account.name}\n🔢 *একাউন্ট নাম্বার:* ${account.accountNumber || 'N/A'}\n${account.bankBranch || account.branch ? `📍 *শাখা / ব্রাঞ্চ:* ${account.bankBranch || account.branch}\n` : ''}━━━━━━━━━━━━━━━━━━━━\n📌 *প্রতিষ্ঠান:* ${company}${companyPhone ? `\n📞 *যোগাযোগ:* ${companyPhone}` : ''}`;
     }
 
     if (account.type === 'mobile_banking' || account.type === 'mfs') {
-      return `📱 *মোবাইল ব্যাংকিং বিবরণী (bKash / Nagad / Rocket)*\n━━━━━━━━━━━━━━━━━━━━\n🏷️ *একাউন্টের নাম:* ${account.name}\n${account.accountHolder ? `👤 *একাউন্ট হোল্ডার:* ${account.accountHolder}\n` : ''}📞 *মোবাইল / ওয়ালেট:* ${account.accountNumber || 'N/A'}\n${account.bankBranch || account.branch ? `💼 *টাইপ / সেবা:* ${account.bankBranch || account.branch}\n` : ''}━━━━━━━━━━━━━━━━━━━━\n📌 *প্রতিষ্ঠান:* ${company}${companyPhone ? `\n📞 *যোগাযোগ:* ${companyPhone}` : ''}`;
+      return `📱 *মোবাইল ব্যাংকিং বিবরণী (bKash / Nagad)*\n━━━━━━━━━━━━━━━━━━━━\n🏷️ *একাউন্টের নাম:* ${account.name}\n📞 *মোবাইল / ওয়ালেট:* ${account.accountNumber || 'N/A'}\n${account.bankBranch || account.branch ? `💼 *টাইপ / সেবা:* ${account.bankBranch || account.branch}\n` : ''}━━━━━━━━━━━━━━━━━━━━\n📌 *প্রতিষ্ঠান:* ${company}${companyPhone ? `\n📞 *যোগাযোগ:* ${companyPhone}` : ''}`;
     }
 
     // Cash
