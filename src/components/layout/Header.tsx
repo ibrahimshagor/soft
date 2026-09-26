@@ -710,10 +710,12 @@ export const Header: React.FC<HeaderProps> = ({
                     <div className="text-xs font-bold text-slate-900 dark:text-white">
                       {currentUser.name}
                     </div>
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                      {currentUser.email}
-                    </div>
-                    <div className="mt-1 flex items-center gap-2">
+                    {currentUser.phone && (
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {currentUser.phone}
+                      </div>
+                    )}
+                    <div className="mt-1.5 flex items-center gap-2">
                       <span
                         className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${getRoleBadge(
                           currentUser.role

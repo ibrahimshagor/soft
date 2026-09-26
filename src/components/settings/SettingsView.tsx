@@ -64,6 +64,7 @@ export const SettingsView: React.FC = () => {
 
   // Add/Edit user form fields
   const [newUserName, setNewUserName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserUsername, setNewUserUsername] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserPhone, setNewUserPhone] = useState('');
@@ -133,6 +134,7 @@ export const SettingsView: React.FC = () => {
   const handleOpenAddUser = () => {
     setEditingUser(null);
     setNewUserName('');
+    setNewUserEmail('');
     setNewUserUsername('');
     setNewUserPassword('');
     setNewUserPhone('');
@@ -155,6 +157,7 @@ export const SettingsView: React.FC = () => {
   const handleOpenEditUser = (u: User) => {
     setEditingUser(u);
     setNewUserName(u.name);
+    setNewUserEmail(u.email || '');
     setNewUserUsername(u.username || '');
     setNewUserPassword(u.password || '');
     setNewUserPhone(u.phone);
@@ -236,6 +239,7 @@ export const SettingsView: React.FC = () => {
       updateUser({
         ...editingUser,
         name: newUserName.trim(),
+        email: newUserEmail.trim() || undefined,
         username: newUserUsername.trim() || undefined,
         password: newUserPassword.trim() || undefined,
         phone: newUserPhone.trim(),
@@ -245,6 +249,7 @@ export const SettingsView: React.FC = () => {
     } else {
       addUser({
         name: newUserName.trim(),
+        email: newUserEmail.trim() || undefined,
         username: newUserUsername.trim() || undefined,
         password: newUserPassword.trim() || undefined,
         phone: newUserPhone.trim(),
@@ -691,9 +696,10 @@ export const SettingsView: React.FC = () => {
                         {u.role}
                       </span>
                     </div>
-                    <div className="text-[10px] text-slate-400 flex gap-2 mt-0.5">
+                    <div className="text-[10px] text-slate-400 flex flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
                       {u.username && <span>User: {u.username}</span>}
                       {u.phone && <span>Phone: {u.phone}</span>}
+                      {u.email && <span>Email: {u.email}</span>}
                     </div>
                   </div>
 
@@ -1031,6 +1037,19 @@ export const SettingsView: React.FC = () => {
                     className="w-full px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Email Address (Optional / ঐচ্ছিক)
+                </label>
+                <input
+                  type="email"
+                  value={newUserEmail}
+                  onChange={(e) => setNewUserEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  className="w-full px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                />
               </div>
 
               {/* Permission Checkboxes */}

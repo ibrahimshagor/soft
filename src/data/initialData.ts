@@ -52,7 +52,6 @@ export const initialUsers: User[] = [
     name: 'আব্দুর রহিম রনি',
     username: 'admin',
     password: '123',
-    email: 'owner@rmautomobiles.com',
     phone: '01711223344',
     role: 'super_admin',
     permissions: {
@@ -71,7 +70,6 @@ export const initialUsers: User[] = [
     name: 'Tariqul Islam (Manager)',
     username: 'manager',
     password: '123',
-    email: 'tariqul@rmautomobiles.com',
     phone: '01819334455',
     role: 'manager',
     permissions: {
@@ -90,7 +88,6 @@ export const initialUsers: User[] = [
     name: 'Ashraful Alam (Sales Staff)',
     username: 'sales',
     password: '123',
-    email: 'ashraf@rmautomobiles.com',
     phone: '01912445566',
     role: 'staff',
     permissions: {
