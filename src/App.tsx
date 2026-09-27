@@ -66,7 +66,7 @@ const AuthenticatedApp: React.FC = () => {
   }, [activeTab]);
 
   return (
-    <div className="h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased transition-colors duration-200 overflow-hidden">
+    <div className="min-h-[100dvh] h-[100dvh] flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased transition-colors duration-200 overflow-hidden">
       {/* Top Application Bar */}
       <Header
         onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
@@ -89,7 +89,7 @@ const AuthenticatedApp: React.FC = () => {
         />
 
         {/* Dynamic Content Panel */}
-        <main className="flex-1 flex flex-col overflow-y-auto no-scrollbar overflow-x-hidden min-w-0 min-h-0 pb-16 md:pb-0">
+        <main className="flex-1 flex flex-col overflow-y-auto no-scrollbar overflow-x-hidden min-w-0 min-h-0 pb-20 md:pb-6 overscroll-y-contain touch-pan-y">
           <div className="flex-1 p-3 sm:p-5 lg:p-6">
             {activeTab === 'dashboard' && (
               <Dashboard

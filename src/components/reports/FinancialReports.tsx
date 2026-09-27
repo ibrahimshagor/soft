@@ -14,7 +14,7 @@ import {
   PieChart,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { formatBDT, formatDate, exportToCSV } from '../../utils/formatters';
+import { formatBDT, formatDate, formatDateTime, exportToCSV } from '../../utils/formatters';
 import { ReportExportModal } from '../common/ReportExportModal';
 
 export const FinancialReports: React.FC = () => {
@@ -183,6 +183,25 @@ export const FinancialReports: React.FC = () => {
     exportToCSV(`RM_Profit_Loss_Report_${dateFilter}_${new Date().toISOString().slice(0, 10)}.csv`, rows);
   };
 
+  const getPeriodLabel = () => {
+    if (dateFilter === 'today') {
+      return language === 'bn' ? `আজকের হিসাব (${formatDate(new Date().toISOString())})` : `Today (${formatDate(new Date().toISOString())})`;
+    }
+    if (dateFilter === '7days') {
+      return language === 'bn' ? 'বিগত ৭ দিনের হিসাব (Last 7 Days)' : 'Last 7 Days';
+    }
+    if (dateFilter === '30days') {
+      return language === 'bn' ? 'বিগত ৩০ দিনের হিসাব (Last 30 Days)' : 'Last 30 Days';
+    }
+    if (dateFilter === 'month') {
+      return language === 'bn' ? `মাসের হিসাব: ${selectedMonth}` : `Month: ${selectedMonth}`;
+    }
+    if (dateFilter === 'custom') {
+      return language === 'bn' ? `${formatDate(customStartDate)} থেকে ${formatDate(customEndDate)}` : `${formatDate(customStartDate)} to ${formatDate(customEndDate)}`;
+    }
+    return language === 'bn' ? 'সর্বকালীন সর্বমোট হিসাব (All Time Consolidated)' : 'All Time Consolidated';
+  };
+
   const getPrintHtml = () => {
     return `<!DOCTYPE html>
 <html>
@@ -215,11 +234,12 @@ export const FinancialReports: React.FC = () => {
     <div>
       <div class="title">${businessProfile.businessName}</div>
       <div class="sub">${businessProfile.address || ''} • Tel: ${businessProfile.phone}</div>
-      <div style="margin-top: 4px; font-weight: 700; color: #d97706; font-size: 12px;">Financial Profit & Loss Statement (P&L Audit)</div>
+      <div style="margin-top: 5px; font-weight: 800; color: #b45309; font-size: 13px;">রিপোর্ট ও লাভ-ক্ষতি বিশ্লেষণ (Report & P&L Analysis)</div>
     </div>
     <div style="text-align: right; font-size: 10px; color: #475569;">
-      <div>Generated: ${new Date().toLocaleDateString()}</div>
-      <div>Timeframe: ${dateFilter.toUpperCase()}</div>
+      <div><strong>সময়কাল:</strong> ${getPeriodLabel()}</div>
+      <div>জেনারেট: ${formatDateTime(new Date().toISOString())}</div>
+      <div>প্রস্তুতকারী: ${currentUser?.name || 'Administrator'}</div>
     </div>
   </div>
 
@@ -481,7 +501,55 @@ export const FinancialReports: React.FC = () => {
 
       {/* Printable Report Container */}
       <div ref={reportContainerRef} className="space-y-6">
-      {/* Primary Financial KPIs */}
+        {/* Official Report Header Banner (Included in Image / PDF / Print Downloads) */}
+        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white shadow-lg border border-slate-800">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3.5">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 font-extrabold text-[10px] uppercase tracking-wider mb-1.5">
+                <BarChart3 className="w-3 h-3 text-amber-400" />
+                <span>{language === 'bn' ? 'অফিসিয়াল আর্থিক নিরীক্ষা প্রতিবেদন' : 'Official Financial Audit Report'}</span>
+              </div>
+              <h2 className="text-lg sm:text-2xl font-black tracking-tight text-white">
+                {language === 'bn' ? 'রিপোর্ট ও লাভ-ক্ষতি বিশ্লেষণ (Report & P&L Analysis)' : 'Report & Profit/Loss Analysis (P&L)'}
+              </h2>
+              <p className="text-xs text-slate-300 font-medium mt-1">
+                <strong className="text-white">{businessProfile.businessName}</strong>
+                {businessProfile.address ? ` • ${businessProfile.address}` : ''}
+                {businessProfile.phone ? ` • 📞 ${businessProfile.phone}` : ''}
+              </p>
+            </div>
+
+            {/* Filter / Period Info Banner */}
+            <div className="sm:text-right text-xs text-slate-300 space-y-1 bg-slate-900/80 p-2.5 sm:p-3 rounded-2xl border border-slate-800 shrink-0">
+              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                {language === 'bn' ? 'প্রতিবেদনের সময়কাল (Period):' : 'Report Timeframe:'}
+              </div>
+              <div className="font-extrabold text-amber-400 text-xs sm:text-sm flex items-center sm:justify-end gap-1.5">
+                <Calendar className="w-3.5 h-3.5 shrink-0" />
+                <span>{getPeriodLabel()}</span>
+              </div>
+              <div className="text-[10px] text-slate-400">
+                {language === 'bn' ? 'তারিখ:' : 'Date:'} {formatDate(new Date().toISOString())}
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-300">
+            <div className="flex items-center gap-4">
+              <span>
+                {language === 'bn' ? 'মোট বিক্রয়:' : 'Total Sales:'} <strong className="text-amber-400 font-black">{filteredSales.length} টি ইনভয়েস</strong>
+              </span>
+              <span>
+                {language === 'bn' ? 'পরিচালন ব্যয়:' : 'Expenses:'} <strong className="text-rose-400 font-black">{filteredExpenses.length} টি ভাউচার</strong>
+              </span>
+            </div>
+            <span className="text-[11px] text-slate-400">
+              {language === 'bn' ? 'তৈরি করেছেন:' : 'Generated By:'} <strong className="text-white">{currentUser?.name || 'Administrator'}</strong>
+            </span>
+          </div>
+        </div>
+
+        {/* Primary Financial KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">

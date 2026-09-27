@@ -42,7 +42,7 @@ export const AccountsManager: React.FC = () => {
     t,
   } = useApp();
 
-  const [activeSubTab, setActiveSubTab] = useState<'accounts' | 'expenses' | 'transactions'>('accounts');
+  const [activeSubTab, setActiveSubTab] = useState<'accounts' | 'transactions'>('accounts');
 
   // Modals & Selected items
   const [isExpenseOpen, setIsExpenseOpen] = useState(false);
@@ -64,7 +64,6 @@ export const AccountsManager: React.FC = () => {
 
   // Filter states
   const [txSearch, setTxSearch] = useState('');
-  const [expCategoryFilter, setExpCategoryFilter] = useState<string>('ALL');
 
   const totalLiquidBalance = useMemo(
     () => accounts.reduce((sum, a) => sum + a.balance, 0),
@@ -85,13 +84,6 @@ export const AccountsManager: React.FC = () => {
     });
   }, [transactions, txSearch]);
 
-  const filteredExpenses = useMemo(() => {
-    return expenses.filter((e) => {
-      if (expCategoryFilter === 'ALL') return true;
-      return e.categoryId === expCategoryFilter;
-    });
-  }, [expenses, expCategoryFilter]);
-
   const handleExportTransactionsCSV = () => {
     const rows = [
       ['Date', 'Type', 'Account', 'Amount', 'Flow', 'Description', 'Recorded By'],
@@ -106,22 +98,6 @@ export const AccountsManager: React.FC = () => {
       ]),
     ];
     exportToCSV(`RM_Transactions_Journal_${new Date().toISOString().slice(0, 10)}.csv`, rows);
-  };
-
-  const handleExportExpensesCSV = () => {
-    const rows = [
-      ['Date', 'Category', 'Amount', 'Paid From', 'Payee', 'Voucher #', 'Description'],
-      ...filteredExpenses.map((e) => [
-        formatDate(e.date),
-        e.categoryName,
-        e.amount,
-        e.accountName,
-        e.payee || '',
-        e.voucherNo || '',
-        e.description,
-      ]),
-    ];
-    exportToCSV(`RM_Expenses_Report_${new Date().toISOString().slice(0, 10)}.csv`, rows);
   };
 
   const handleOpenAddAccount = () => {
@@ -270,10 +246,10 @@ export const AccountsManager: React.FC = () => {
       </div>
 
       {/* Sub-Tabs Switcher */}
-      <div className="flex border-b border-slate-200 dark:border-slate-700 text-xs font-bold">
+      <div className="flex border-b border-slate-200 dark:border-slate-700 text-xs font-bold overflow-x-auto">
         <button
           onClick={() => setActiveSubTab('accounts')}
-          className={`pb-3 px-4 border-b-2 transition-all flex items-center gap-1.5 ${
+          className={`pb-3 px-4 border-b-2 transition-all flex items-center gap-1.5 shrink-0 ${
             activeSubTab === 'accounts'
               ? 'border-amber-500 text-amber-600 dark:text-amber-400'
               : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -284,20 +260,8 @@ export const AccountsManager: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveSubTab('expenses')}
-          className={`pb-3 px-4 border-b-2 transition-all flex items-center gap-1.5 ${
-            activeSubTab === 'expenses'
-              ? 'border-rose-500 text-rose-600 dark:text-rose-400'
-              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-          }`}
-        >
-          <Receipt className="w-4 h-4" />
-          <span>{language === 'bn' ? `খরচ ভাউচারসমূহ (${expenses.length})` : `Expenses Vouchers (${expenses.length})`}</span>
-        </button>
-
-        <button
           onClick={() => setActiveSubTab('transactions')}
-          className={`pb-3 px-4 border-b-2 transition-all flex items-center gap-1.5 ${
+          className={`pb-3 px-4 border-b-2 transition-all flex items-center gap-1.5 shrink-0 ${
             activeSubTab === 'transactions'
               ? 'border-blue-500 text-blue-600 dark:text-blue-400'
               : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -546,91 +510,7 @@ export const AccountsManager: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 2: EXPENSES LIST */}
-      {activeSubTab === 'expenses' && (
-        <div className="space-y-4">
-          <div className="p-3 bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/70 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-slate-400">
-                {language === 'bn' ? 'ক্যাটাগরি ফিল্টার:' : 'Category Filter:'}
-              </span>
-              <select
-                value={expCategoryFilter}
-                onChange={(e) => setExpCategoryFilter(e.target.value)}
-                className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-xs font-medium"
-              >
-                <option value="ALL">{language === 'bn' ? 'সকল ক্যাটাগরি' : 'All Categories'}</option>
-                {expenseCategories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              onClick={handleExportExpensesCSV}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>{language === 'bn' ? 'এক্সপোর্ট CSV' : 'Export CSV'}</span>
-            </button>
-          </div>
-
-          <div className="bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/70 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40 text-slate-400 uppercase tracking-wider text-[10px]">
-                    <th className="py-3 px-3.5">{language === 'bn' ? 'তারিখ' : 'Date'}</th>
-                    <th className="py-3 px-3.5">{language === 'bn' ? 'ক্যাটাগরি' : 'Category'}</th>
-                    <th className="py-3 px-3.5">{language === 'bn' ? 'পরিশোধিত একাউন্ট' : 'Paid From Account'}</th>
-                    <th className="py-3 px-3.5">{language === 'bn' ? 'প্রাপক / ব্যক্তি' : 'Payee / Recipient'}</th>
-                    <th className="py-3 px-3.5">{language === 'bn' ? 'বিবরণ / নোট' : 'Particulars / Note'}</th>
-                    <th className="py-3 px-3.5 text-right">{language === 'bn' ? 'পরিমাণ (৳)' : 'Amount (৳)'}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60">
-                  {filteredExpenses.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-10 text-center text-slate-400">
-                        {language === 'bn' ? 'কোন খরচের এন্ট্রি পাওয়া যায়নি।' : 'No expenses recorded yet.'}
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredExpenses.map((exp) => (
-                      <tr key={exp.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                        <td className="py-3 px-3.5 text-slate-600 dark:text-slate-400 whitespace-nowrap">
-                          {formatDate(exp.date)}
-                        </td>
-                        <td className="py-3 px-3.5">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                            {exp.categoryName}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3.5 font-medium text-slate-800 dark:text-slate-200">
-                          {exp.accountName}
-                        </td>
-                        <td className="py-3 px-3.5 text-slate-600 dark:text-slate-400">
-                          {exp.payee || '—'}
-                        </td>
-                        <td className="py-3 px-3.5 text-slate-800 dark:text-slate-200">
-                          {exp.description}
-                        </td>
-                        <td className="py-3 px-3.5 text-right font-black text-rose-600 dark:text-rose-400">
-                          {formatBDT(exp.amount)}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 3: TRANSACTION JOURNAL */}
+      {/* TAB 2: TRANSACTION JOURNAL */}
       {activeSubTab === 'transactions' && (
         <div className="space-y-4">
           <div className="p-3 bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/70 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -647,7 +527,7 @@ export const AccountsManager: React.FC = () => {
 
             <button
               onClick={handleExportTransactionsCSV}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold"
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold w-full sm:w-auto"
             >
               <Download className="w-3.5 h-3.5" />
               <span>{language === 'bn' ? 'এক্সপোর্ট CSV' : 'Export CSV'}</span>
@@ -655,71 +535,127 @@ export const AccountsManager: React.FC = () => {
           </div>
 
           <div className="bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/70 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40 text-slate-400 uppercase tracking-wider text-[10px]">
-                    <th className="py-3 px-3.5">{language === 'bn' ? 'তারিখ ও সময়' : 'Date & Time'}</th>
-                    <th className="py-3 px-3.5">{language === 'bn' ? 'ফ্লো' : 'Flow'}</th>
-                    <th className="py-3 px-3.5">{language === 'bn' ? 'একাউন্ট' : 'Account'}</th>
-                    <th className="py-3 px-3.5">{language === 'bn' ? 'লেনদেনের ধরণ' : 'Transaction Type'}</th>
-                    <th className="py-3 px-3.5">{language === 'bn' ? 'বিবরণ' : 'Description'}</th>
-                    <th className="py-3 px-3.5 text-right">{language === 'bn' ? 'পরিমাণ (৳)' : 'Amount (৳)'}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60">
-                  {filteredTransactions.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-10 text-center text-slate-400">
-                        {language === 'bn' ? 'কোন লেনদেন রেকর্ড পাওয়া যায়নি।' : 'No transactions found.'}
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredTransactions.map((tx: Transaction) => (
-                      <tr key={tx.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                        <td className="py-3 px-3.5 text-slate-600 dark:text-slate-400 whitespace-nowrap">
+            {filteredTransactions.length === 0 ? (
+              <div className="py-12 text-center text-slate-400">
+                <ArrowRightLeft className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                <p className="font-semibold text-xs">
+                  {language === 'bn' ? 'কোন লেনদেন রেকর্ড পাওয়া যায়নি।' : 'No transactions found.'}
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Mobile View: Cards */}
+                <div className="block sm:hidden divide-y divide-slate-100 dark:divide-slate-700/60 touch-pan-y overscroll-y-auto">
+                  {filteredTransactions.map((tx: Transaction) => (
+                    <div key={tx.id} className="p-3.5 space-y-2 hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-mono text-slate-400">
                           {formatDateTime(tx.date)}
-                        </td>
-                        <td className="py-3 px-3.5">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              tx.flow === 'in'
-                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                                : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                            }`}
-                          >
-                            {tx.flow === 'in' ? (
-                              <ArrowDownLeft className="w-3 h-3" />
-                            ) : (
-                              <ArrowUpRight className="w-3 h-3" />
-                            )}
-                            <span>{tx.flow.toUpperCase()}</span>
-                          </span>
-                        </td>
-                        <td className="py-3 px-3.5 font-semibold text-slate-800 dark:text-slate-200">
-                          {tx.accountName}
-                        </td>
-                        <td className="py-3 px-3.5 text-slate-500 uppercase text-[10px] font-mono">
-                          {tx.type.replace(/_/g, ' ')}
-                        </td>
-                        <td className="py-3 px-3.5 text-slate-700 dark:text-slate-300">
-                          {tx.description}
-                        </td>
-                        <td
-                          className={`py-3 px-3.5 text-right font-black ${
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            tx.flow === 'in'
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                              : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                          }`}
+                        >
+                          {tx.flow === 'in' ? (
+                            <ArrowDownLeft className="w-3 h-3" />
+                          ) : (
+                            <ArrowUpRight className="w-3 h-3" />
+                          )}
+                          <span>{tx.flow.toUpperCase()}</span>
+                        </span>
+                      </div>
+
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-900 dark:text-white">
+                            {tx.accountName}
+                          </p>
+                          <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 leading-snug">
+                            {tx.description}
+                          </p>
+                        </div>
+                        <div
+                          className={`text-right font-black text-sm shrink-0 ${
                             tx.flow === 'in'
                               ? 'text-emerald-600 dark:text-emerald-400'
                               : 'text-rose-600 dark:text-rose-400'
                           }`}
                         >
                           {tx.flow === 'in' ? '+' : '-'} {formatBDT(tx.amount)}
-                        </td>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800/60">
+                        <span className="uppercase font-mono">{tx.type.replace(/_/g, ' ')}</span>
+                        <span>{tx.creatorName ? `দ্বারা: ${tx.creatorName}` : ''}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop / Tablet View: Table */}
+                <div className="hidden sm:block overflow-x-auto touch-pan-x">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40 text-slate-400 uppercase tracking-wider text-[10px]">
+                        <th className="py-3 px-3.5">{language === 'bn' ? 'তারিখ ও সময়' : 'Date & Time'}</th>
+                        <th className="py-3 px-3.5">{language === 'bn' ? 'ফ্লো' : 'Flow'}</th>
+                        <th className="py-3 px-3.5">{language === 'bn' ? 'একাউন্ট' : 'Account'}</th>
+                        <th className="py-3 px-3.5">{language === 'bn' ? 'লেনদেনের ধরণ' : 'Transaction Type'}</th>
+                        <th className="py-3 px-3.5">{language === 'bn' ? 'বিবরণ' : 'Description'}</th>
+                        <th className="py-3 px-3.5 text-right">{language === 'bn' ? 'পরিমাণ (৳)' : 'Amount (৳)'}</th>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60">
+                      {filteredTransactions.map((tx: Transaction) => (
+                        <tr key={tx.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                          <td className="py-3 px-3.5 text-slate-600 dark:text-slate-400 whitespace-nowrap font-mono text-[11px]">
+                            {formatDateTime(tx.date)}
+                          </td>
+                          <td className="py-3 px-3.5">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                tx.flow === 'in'
+                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                  : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                              }`}
+                            >
+                              {tx.flow === 'in' ? (
+                                <ArrowDownLeft className="w-3 h-3" />
+                              ) : (
+                                <ArrowUpRight className="w-3 h-3" />
+                              )}
+                              <span>{tx.flow.toUpperCase()}</span>
+                            </span>
+                          </td>
+                          <td className="py-3 px-3.5 font-semibold text-slate-800 dark:text-slate-200">
+                            {tx.accountName}
+                          </td>
+                          <td className="py-3 px-3.5 text-slate-500 uppercase text-[10px] font-mono">
+                            {tx.type.replace(/_/g, ' ')}
+                          </td>
+                          <td className="py-3 px-3.5 text-slate-700 dark:text-slate-300">
+                            {tx.description}
+                          </td>
+                          <td
+                            className={`py-3 px-3.5 text-right font-black ${
+                              tx.flow === 'in'
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-rose-600 dark:text-rose-400'
+                            }`}
+                          >
+                            {tx.flow === 'in' ? '+' : '-'} {formatBDT(tx.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

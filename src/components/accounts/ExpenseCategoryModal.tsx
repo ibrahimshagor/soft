@@ -1,177 +1,255 @@
 import React, { useState } from 'react';
-import { X, Plus, Edit, Trash2, Tag, Check, AlertCircle } from 'lucide-react';
+import { X, Tags, Plus, Edit2, Trash2, Check, AlertCircle, Layers } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ExpenseCategory } from '../../types';
 
 interface ExpenseCategoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectCategory?: (categoryId: string) => void;
 }
 
 export const ExpenseCategoryModal: React.FC<ExpenseCategoryModalProps> = ({
   isOpen,
   onClose,
-  onSelectCategory,
 }) => {
-  const { expenseCategories, addExpenseCategory, updateExpenseCategory, deleteExpenseCategory, language } = useApp();
+  const {
+    expenseCategories,
+    addExpenseCategory,
+    updateExpenseCategory,
+    deleteExpenseCategory,
+    expenses,
+    language,
+  } = useApp();
 
-  const [name, setName] = useState('');
+  const [newCatName, setNewCatName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
   if (!isOpen) return null;
 
+  const handleAddCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCatName.trim()) return;
+
+    // Check duplicate
+    const exists = expenseCategories.some(
+      (c) => c.name.toLowerCase() === newCatName.trim().toLowerCase()
+    );
+    if (exists) {
+      setErrorMsg(language === 'bn' ? 'এই নামের ক্যাটাগরি ইতিমধ্যে বিদ্যমান।' : 'Category with this name already exists.');
+      return;
+    }
+
+    addExpenseCategory({
+      name: newCatName.trim(),
+      nameBn: newCatName.trim(),
+    });
+    setNewCatName('');
+    setErrorMsg('');
+  };
+
   const handleStartEdit = (cat: ExpenseCategory) => {
     setEditingId(cat.id);
-    setName(cat.name);
+    setEditingName(cat.name);
     setErrorMsg('');
   };
 
-  const handleCancelEdit = () => {
+  const handleSaveEdit = (id: string) => {
+    if (!editingName.trim()) return;
+
+    // Check duplicate with others
+    const exists = expenseCategories.some(
+      (c) => c.id !== id && c.name.toLowerCase() === editingName.trim().toLowerCase()
+    );
+    if (exists) {
+      setErrorMsg(language === 'bn' ? 'এই নামের ক্যাটাগরি ইতিমধ্যে বিদ্যমান।' : 'Category with this name already exists.');
+      return;
+    }
+
+    updateExpenseCategory(id, {
+      name: editingName.trim(),
+      nameBn: editingName.trim(),
+    });
     setEditingId(null);
-    setName('');
+    setEditingName('');
     setErrorMsg('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) {
-      setErrorMsg(language === 'bn' ? 'ক্যাটাগরির নাম লিখুন।' : 'Please enter category name.');
-      return;
-    }
-
-    if (editingId) {
-      updateExpenseCategory(editingId, { name: name.trim() });
-      handleCancelEdit();
-    } else {
-      addExpenseCategory({ name: name.trim() });
-      setName('');
-    }
-  };
-
-  const handleDelete = (id: string, catName: string) => {
+  const handleDelete = (cat: ExpenseCategory) => {
     if (expenseCategories.length <= 1) {
-      alert(language === 'bn' ? 'কমপক্ষে একটি খরচের ক্যাটাগরি তালিকায় থাকতে হবে।' : 'At least one expense category must remain.');
+      setErrorMsg(
+        language === 'bn'
+          ? 'কমপক্ষে একটি খরচের ক্যাটাগরি থাকতে হবে।'
+          : 'At least one expense category must remain.'
+      );
       return;
     }
-    if (confirm(language === 'bn' ? `আপনি কি নিশ্চিতভাবে "${catName}" ক্যাটাগরি মুছতে চান?` : `Delete expense category "${catName}"?`)) {
-      deleteExpenseCategory(id);
-      if (editingId === id) handleCancelEdit();
+
+    const count = expenses.filter((e) => e.categoryId === cat.id).length;
+    const confirmMsg = language === 'bn'
+      ? `আপনি কি নিশ্চিতভাবে "${cat.name}" ক্যাটাগরিটি মুছে ফেলতে চান?${count > 0 ? ` (এই ক্যাটাগরিতে ${count}টি খরচ রয়েছে)` : ''}`
+      : `Are you sure you want to delete category "${cat.name}"?${count > 0 ? ` (${count} expenses linked)` : ''}`;
+
+    if (window.confirm(confirmMsg)) {
+      deleteExpenseCategory(cat.id);
+      setErrorMsg('');
     }
   };
 
   return (
-    <div className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-xs">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/75 backdrop-blur-xs">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/60">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-rose-600 text-white font-bold">
-              <Tag className="w-5 h-5" />
+          <div className="flex items-center gap-2.5 text-rose-600 dark:text-rose-400 font-extrabold text-base">
+            <div className="p-2 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400">
+              <Tags className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-black text-sm sm:text-base text-slate-900 dark:text-white">
-                {language === 'bn' ? 'খরচের ক্যাটাগরি পরিচালনা' : 'Manage Expense Categories'}
-              </h3>
-              <p className="text-[11px] text-slate-500">
-                {language === 'bn' ? 'নতুন ক্যাটাগরি তৈরি, এডিট অথবা ডিলিট করুন' : 'Create, update, or remove expense categories'}
+              <h2 className="text-slate-900 dark:text-white font-black text-sm sm:text-base">
+                {language === 'bn' ? 'খরচের ক্যাটাগরি ব্যবস্থাপনা' : 'Manage Expense Categories'}
+              </h2>
+              <p className="text-[11px] font-normal text-slate-500 dark:text-slate-400">
+                {language === 'bn' ? 'ক্যাটাগরি তৈরি, নাম পরিবর্তন ও ডিলিট করুন' : 'Add, rename or delete expense categories'}
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="p-1.5 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Create / Edit Form */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 bg-rose-50/40 dark:bg-rose-950/10 space-y-3">
-          <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center justify-between">
-            <span>{editingId ? (language === 'bn' ? 'ক্যাটাগরি সম্পাদনা' : 'Edit Category') : (language === 'bn' ? '+ নতুন খরচের ক্যাটাগরি যোগ করুন' : '+ Add Expense Category')}</span>
-            {editingId && (
-              <button
-                type="button"
-                onClick={handleCancelEdit}
-                className="text-[11px] text-slate-500 hover:underline"
-              >
-                {language === 'bn' ? 'বাতিল' : 'Cancel'}
-              </button>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-              {language === 'bn' ? 'ক্যাটাগরির নাম *' : 'Category Name *'}
-            </label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. দোকান ভাড়া / বিদ্যুৎ বিল / স্টাফ বেতন / আপ্যায়ন"
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs"
-            />
-          </div>
-
+        {/* Body */}
+        <div className="p-5 space-y-4 overflow-y-auto flex-1 text-xs">
           {errorMsg && (
-            <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 text-rose-600 text-[11px] font-bold flex items-center gap-1.5">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+            <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
 
-          <button
-            type="submit"
-            className="w-full py-2 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
-          >
-            {editingId ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-            <span>{editingId ? (language === 'bn' ? 'পরিবর্তন সংরক্ষণ করুন' : 'Update Category') : (language === 'bn' ? 'ক্যাটাগরি যুক্ত করুন' : 'Save Category')}</span>
-          </button>
-        </form>
-
-        {/* Categories List */}
-        <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-2">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-            {language === 'bn' ? `বিদ্যমান ক্যাটাগরি (${expenseCategories.length} টি)` : `Categories (${expenseCategories.length})`}
-          </div>
-
-          <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
-            {expenseCategories.map((c) => (
-              <div
-                key={c.id}
-                className="p-2.5 sm:p-3 flex items-center justify-between gap-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-xs"
+          {/* Add New Category Form */}
+          <form onSubmit={handleAddCategory} className="space-y-1.5">
+            <label className="font-bold text-slate-700 dark:text-slate-300 block">
+              {language === 'bn' ? '+ নতুন ক্যাটাগরি যুক্ত করুন' : '+ Add New Category'}
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newCatName}
+                onChange={(e) => {
+                  setNewCatName(e.target.value);
+                  setErrorMsg('');
+                }}
+                placeholder={language === 'bn' ? 'যেমন: নাস্তা ও আপ্যায়ন, দোকান ভাড়া, বিদ্যুৎ বিল...' : 'e.g. Refreshments, Shop Rent, Utility Bills'}
+                className="flex-1 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-rose-500"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold shrink-0 shadow-xs flex items-center gap-1.5"
               >
-                <div
-                  className="min-w-0 flex-1 cursor-pointer font-bold text-slate-900 dark:text-white"
-                  onClick={() => onSelectCategory?.(c.id)}
-                >
-                  {c.name}
-                </div>
+                <Plus className="w-4 h-4" />
+                <span>{language === 'bn' ? 'যোগ করুন' : 'Add'}</span>
+              </button>
+            </div>
+          </form>
 
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => handleStartEdit(c)}
-                    className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
-                    title="Edit Category"
+          {/* Categories List */}
+          <div className="pt-2">
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-bold text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider">
+                {language === 'bn' ? `বিদ্যমান ক্যাটাগরি তালিকা (${expenseCategories.length})` : `Existing Categories (${expenseCategories.length})`}
+              </span>
+            </div>
+
+            <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/40">
+              {expenseCategories.map((cat) => {
+                const count = expenses.filter((e) => e.categoryId === cat.id).length;
+                const isEditing = editingId === cat.id;
+
+                return (
+                  <div
+                    key={cat.id}
+                    className="p-3 flex items-center justify-between gap-2 hover:bg-white dark:hover:bg-slate-800/80 transition-colors"
                   >
-                    <Edit className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(c.id, c.name)}
-                    className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                    title="Delete Category"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))}
+                    {isEditing ? (
+                      <div className="flex-1 flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          className="flex-1 px-2.5 py-1.5 rounded-lg border border-amber-400 dark:border-amber-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold text-xs focus:outline-none"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleSaveEdit(cat.id);
+                            } else if (e.key === 'Escape') {
+                              setEditingId(null);
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSaveEdit(cat.id)}
+                          className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                          title={language === 'bn' ? 'সংরক্ষণ করুন' : 'Save'}
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingId(null)}
+                          className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+                          title={language === 'bn' ? 'বাতিল' : 'Cancel'}
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                          <span className="font-bold text-slate-800 dark:text-slate-200 truncate">
+                            {cat.name}
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 shrink-0">
+                            {count} {language === 'bn' ? 'টি খরচ' : 'expenses'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          {/* Edit button */}
+                          <button
+                            type="button"
+                            onClick={() => handleStartEdit(cat)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
+                            title={language === 'bn' ? 'ক্যাটাগরি নাম এডিট করুন' : 'Edit category name'}
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Delete button */}
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(cat)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                            title={language === 'bn' ? 'ক্যাটাগরি মুছে ফেলুন' : 'Delete category'}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -180,9 +258,9 @@ export const ExpenseCategoryModal: React.FC<ExpenseCategoryModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-800 dark:text-slate-200 font-bold text-xs"
+            className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 text-xs font-bold transition-colors"
           >
-            {language === 'bn' ? 'বন্ধ করুন' : 'Close'}
+            {language === 'bn' ? 'সম্পন্ন / বন্ধ করুন' : 'Done / Close'}
           </button>
         </div>
       </div>
