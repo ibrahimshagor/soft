@@ -383,12 +383,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   });
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const savedUserId = localStorage.getItem(`${STORAGE_KEY}_current_user_id`);
-    if (savedUserId === 'LOGGED_OUT') return null;
-    if (savedUserId) {
-      const found = users.find((u) => u.id === savedUserId);
-      if (found) return found;
+    if (!savedUserId || savedUserId === 'LOGGED_OUT') {
+      return null;
     }
-    return users[0] || initialUsers[0] || null;
+    const found = users.find((u) => u.id === savedUserId);
+    if (found) return found;
+    const initFound = initialUsers.find((u) => u.id === savedUserId);
+    if (initFound) return initFound;
+    return null;
   });
 
   // Master Data State

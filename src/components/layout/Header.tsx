@@ -26,6 +26,7 @@ import {
   Clock,
   Package,
   CheckCircle2,
+  Sparkles,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { formatBDT } from '../../utils/formatters';
@@ -37,6 +38,7 @@ interface HeaderProps {
   onOpenNewProduct: () => void;
   onOpenExpense: () => void;
   onOpenCollectDue: () => void;
+  onOpenAiAssistant?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -46,6 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenNewProduct,
   onOpenExpense,
   onOpenCollectDue,
+  onOpenAiAssistant,
 }) => {
   const {
     businessProfile,
@@ -352,6 +355,20 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right: Quick Action, Theme Switcher, Language Switcher, User */}
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          {/* RM AI Business Assistant Button */}
+          {onOpenAiAssistant && (
+            <button
+              type="button"
+              onClick={onOpenAiAssistant}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-700 hover:from-violet-500 hover:to-indigo-500 active:scale-95 text-white font-bold text-xs shadow-xs transition-all border border-indigo-400/30"
+              title="RM AutoManage AI Business Assistant (এআই ব্যবসায়িক উপদেষ্টা)"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+              <span className="hidden lg:inline">এআই সহকারী</span>
+              <span className="lg:hidden text-[11px]">AI</span>
+            </button>
+          )}
+
           {/* Quick Action Button */}
           <div className="relative">
             <button

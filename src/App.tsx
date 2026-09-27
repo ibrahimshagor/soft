@@ -28,6 +28,8 @@ import { CollectDueModal } from './components/customers/CollectDueModal';
 import { PaySupplierModal } from './components/suppliers/PaySupplierModal';
 import { InvoiceViewModal } from './components/sales/InvoiceViewModal';
 import { LoginView } from './components/auth/LoginView';
+import { AiAssistantModal } from './components/ai/AiAssistantModal';
+import { Sparkles } from 'lucide-react';
 
 const AppContent: React.FC = () => {
   const { currentUser } = useApp();
@@ -51,6 +53,7 @@ const AuthenticatedApp: React.FC = () => {
   const [isNewExpenseOpen, setIsNewExpenseOpen] = useState(false);
   const [isCollectDueOpen, setIsCollectDueOpen] = useState(false);
   const [isPaySupplierOpen, setIsPaySupplierOpen] = useState(false);
+  const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
 
   // Pre-selected parameters from due reminders
   const [dueCustomerId, setDueCustomerId] = useState<string | undefined>();
@@ -79,6 +82,7 @@ const AuthenticatedApp: React.FC = () => {
           setDueInvoiceNo(undefined);
           setIsCollectDueOpen(true);
         }}
+        onOpenAiAssistant={() => setIsAiAssistantOpen(true)}
       />
 
       {/* Main Workspace with Fixed Sidebar */}
@@ -221,6 +225,31 @@ const AuthenticatedApp: React.FC = () => {
           onClose={() => setSelectedInvoice(null)}
         />
       )}
+
+      {/* Floating AI Business Assistant Button */}
+      <div className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-40">
+        <button
+          type="button"
+          onClick={() => setIsAiAssistantOpen(true)}
+          className="group flex items-center gap-2 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-full bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-700 text-white shadow-xl shadow-indigo-600/35 hover:shadow-indigo-600/55 hover:scale-105 active:scale-95 transition-all border border-white/25 backdrop-blur-md"
+          title="RM AutoManage AI Business Assistant (এআই ব্যবসায়িক উপদেষ্টা)"
+        >
+          <div className="relative">
+            <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-violet-700" />
+          </div>
+          <span className="text-xs sm:text-sm font-black tracking-tight hidden sm:inline">
+            এআই সহকারী
+          </span>
+          <span className="sm:hidden text-xs font-black">AI</span>
+        </button>
+      </div>
+
+      {/* AI Assistant Modal Screen */}
+      <AiAssistantModal
+        isOpen={isAiAssistantOpen}
+        onClose={() => setIsAiAssistantOpen(false)}
+      />
     </div>
   );
 };
