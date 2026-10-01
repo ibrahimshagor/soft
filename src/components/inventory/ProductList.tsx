@@ -316,12 +316,12 @@ export const ProductList: React.FC = () => {
         </div>
       </div>
 
-      {/* Products List: Mobile Cards (< md) & Desktop Table (>= md) */}
+      {/* Products List: Mobile & Tablet Cards (< xl) & Desktop Table (>= xl) */}
       
-      {/* 1. Mobile Cards View (No horizontal scrolling!) */}
-      <div className="md:hidden space-y-3">
+      {/* 1. Mobile & Tablet Cards View (No horizontal scrolling!) */}
+      <div className="xl:hidden grid grid-cols-1 md:grid-cols-2 gap-3">
         {filteredProducts.length === 0 ? (
-          <div className="py-12 text-center text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+          <div className="col-span-full py-12 text-center text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
             <Boxes className="w-8 h-8 mx-auto mb-2 opacity-30" />
             <p>No automobile spare parts found matching the criteria.</p>
           </div>
@@ -337,7 +337,7 @@ export const ProductList: React.FC = () => {
             return (
               <div
                 key={product.id}
-                className="bg-white dark:bg-slate-800/95 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 p-3.5 space-y-3 shadow-xs hover:border-amber-400 transition-all"
+                className="bg-white dark:bg-slate-800/95 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 p-3.5 space-y-3 shadow-xs hover:border-amber-400 transition-all flex flex-col justify-between"
               >
                 {/* Header: Image, Name, SKU, Condition */}
                 <div className="flex items-start gap-3">
@@ -493,8 +493,8 @@ export const ProductList: React.FC = () => {
         )}
       </div>
 
-      {/* 2. Desktop Table View (>= md screens) */}
-      <div className="hidden md:block bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/70 shadow-xs overflow-hidden">
+      {/* 2. Desktop Table View (>= xl screens) */}
+      <div className="hidden xl:block bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/70 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>

@@ -218,11 +218,11 @@ export const SalesList: React.FC<SalesListProps> = ({ onOpenNewSale }) => {
         </div>
       </div>
 
-      {/* MOBILE-FIRST VIEW: Responsive Cards on Mobile (No Horizontal Scrolling!), Table on Large Screens */}
-      {/* 1. Mobile Cards (< md screens) */}
-      <div className="md:hidden space-y-3">
+      {/* MOBILE & TABLET VIEW: Responsive Cards (No Horizontal Scrolling!), Table on Desktop (xl+) */}
+      {/* 1. Mobile & Tablet Cards (< xl screens) */}
+      <div className="xl:hidden grid grid-cols-1 md:grid-cols-2 gap-3">
         {filteredSales.length === 0 ? (
-          <div className="py-12 text-center text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+          <div className="col-span-full py-12 text-center text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
             <Receipt className="w-8 h-8 mx-auto mb-2 opacity-30" />
             <p>{language === 'bn' ? 'কোনো ইনভয়েস পাওয়া যায়নি।' : 'No invoices match the current search filters.'}</p>
           </div>
@@ -230,7 +230,7 @@ export const SalesList: React.FC<SalesListProps> = ({ onOpenNewSale }) => {
           filteredSales.map((sale) => (
             <div
               key={sale.id}
-              className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 p-3.5 space-y-3 shadow-xs hover:border-amber-400 transition-all"
+              className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 p-3.5 space-y-3 shadow-xs hover:border-amber-400 transition-all flex flex-col justify-between"
             >
               {/* Card Header: Invoice # & Status */}
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-2">
@@ -372,8 +372,8 @@ export const SalesList: React.FC<SalesListProps> = ({ onOpenNewSale }) => {
         )}
       </div>
 
-      {/* 2. Desktop Table (>= md screens) */}
-      <div className="hidden md:block bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/70 overflow-hidden shadow-xs">
+      {/* 2. Desktop Table (>= xl screens) */}
+      <div className="hidden xl:block bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/70 overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>

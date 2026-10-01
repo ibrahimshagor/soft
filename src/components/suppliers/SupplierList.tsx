@@ -263,8 +263,8 @@ export const SupplierList: React.FC = () => {
         </div>
       </div>
 
-      {/* Suppliers Table (Desktop View) */}
-      <div className="hidden md:block bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/70 shadow-xs overflow-hidden">
+      {/* Suppliers Table (Desktop View >= xl) */}
+      <div className="hidden xl:block bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/70 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
@@ -385,10 +385,10 @@ export const SupplierList: React.FC = () => {
         </div>
       </div>
 
-      {/* Suppliers Cards (Mobile View - No horizontal scroll!) */}
-      <div className="block md:hidden space-y-3">
+      {/* Suppliers Cards (Mobile & Tablet View < xl - No horizontal scroll!) */}
+      <div className="xl:hidden grid grid-cols-1 md:grid-cols-2 gap-3">
         {filteredSuppliers.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+          <div className="col-span-full p-8 text-center text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
             <Building2 className="w-8 h-8 mx-auto mb-2 opacity-30" />
             <p>No suppliers match the current search filters.</p>
           </div>
@@ -396,7 +396,7 @@ export const SupplierList: React.FC = () => {
           filteredSuppliers.map((sup) => (
             <div
               key={sup.id}
-              className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs space-y-3"
+              className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs space-y-3 flex flex-col justify-between"
             >
               {/* Header: Company, Contact, Actions */}
               <div className="flex items-start justify-between gap-2">

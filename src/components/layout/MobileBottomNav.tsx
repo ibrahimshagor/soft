@@ -1,21 +1,20 @@
 import React from 'react';
-import { LayoutDashboard, ShoppingBag, Plus, Boxes, Menu } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Plus, Boxes, BarChart3 } from 'lucide-react';
 import { ActiveTab } from '../../types';
 import { useApp } from '../../context/AppContext';
 
 interface MobileBottomNavProps {
   onOpenNewSale: () => void;
-  onOpenMobileMenu: () => void;
+  onOpenMobileMenu?: () => void;
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   onOpenNewSale,
-  onOpenMobileMenu,
 }) => {
   const { activeTab, setActiveTab, language } = useApp();
 
   return (
-    <nav className="no-print fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 md:hidden px-2 py-1 shadow-lg">
+    <nav className="no-print fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 xl:hidden px-2 py-1 shadow-lg">
       <div className="flex items-center justify-around max-w-lg mx-auto">
         {/* 1. Dashboard */}
         <button
@@ -80,15 +79,19 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           </span>
         </button>
 
-        {/* 5. Mobile Menu Drawer */}
+        {/* 5. Reports & P&L Analysis */}
         <button
           type="button"
-          onClick={onOpenMobileMenu}
-          className="flex-1 flex flex-col items-center justify-center py-1 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+          onClick={() => setActiveTab('reports')}
+          className={`flex-1 flex flex-col items-center justify-center py-1 transition-colors ${
+            activeTab === 'reports'
+              ? 'text-amber-600 dark:text-amber-400 font-bold'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
         >
-          <Menu className="w-5 h-5" />
+          <BarChart3 className="w-5 h-5" />
           <span className="text-[10px] mt-0.5 leading-none">
-            {language === 'bn' ? 'মেনু' : 'Menu'}
+            {language === 'bn' ? 'রিপোর্ট' : 'Reports'}
           </span>
         </button>
       </div>

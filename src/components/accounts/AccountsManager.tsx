@@ -544,10 +544,10 @@ export const AccountsManager: React.FC = () => {
               </div>
             ) : (
               <>
-                {/* Mobile View: Cards */}
-                <div className="block sm:hidden divide-y divide-slate-100 dark:divide-slate-700/60 touch-pan-y overscroll-y-auto">
+                {/* Mobile & Tablet View: Cards (< xl) */}
+                <div className="xl:hidden p-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                   {filteredTransactions.map((tx: Transaction) => (
-                    <div key={tx.id} className="p-3.5 space-y-2 hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                    <div key={tx.id} className="p-3.5 space-y-2 bg-slate-50/70 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/70 hover:bg-slate-100/70 dark:hover:bg-slate-800 transition-colors flex flex-col justify-between">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-mono text-slate-400">
                           {formatDateTime(tx.date)}
@@ -596,8 +596,8 @@ export const AccountsManager: React.FC = () => {
                   ))}
                 </div>
 
-                {/* Desktop / Tablet View: Table */}
-                <div className="hidden sm:block overflow-x-auto touch-pan-x">
+                {/* Desktop View: Table (>= xl) */}
+                <div className="hidden xl:block overflow-x-auto touch-pan-x">
                   <table className="w-full text-left text-xs">
                     <thead>
                       <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40 text-slate-400 uppercase tracking-wider text-[10px]">

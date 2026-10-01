@@ -567,11 +567,11 @@ export const ReceivablesPayablesView: React.FC<ReceivablesPayablesViewProps> = (
         )}
       </div>
 
-      {/* Unified List View: Responsive Cards on Mobile (< md), Table on Desktop (>= md) */}
-      {/* 1. Mobile Cards */}
-      <div className="md:hidden space-y-3">
+      {/* Unified List View: Responsive Cards on Mobile & Tablet (< xl), Table on Desktop (>= xl) */}
+      {/* 1. Mobile & Tablet Cards */}
+      <div className="xl:hidden grid grid-cols-1 md:grid-cols-2 gap-3">
         {filteredRecords.length === 0 ? (
-          <div className="py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
+          <div className="col-span-full py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
             <Coins className="w-8 h-8 mx-auto mb-2 opacity-30 text-amber-500" />
             <p>{language === 'bn' ? 'কোনো বকেয়া বা দেনা পাওয়া যায়নি।' : 'No outstanding receivables or payables found.'}</p>
           </div>
@@ -579,7 +579,7 @@ export const ReceivablesPayablesView: React.FC<ReceivablesPayablesViewProps> = (
           filteredRecords.map((rec) => (
             <div
               key={rec.id}
-              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-3.5 space-y-3 shadow-xs"
+              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-3.5 space-y-3 shadow-xs flex flex-col justify-between"
             >
               {/* Card Header: Type badge & Status */}
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
@@ -770,8 +770,8 @@ export const ReceivablesPayablesView: React.FC<ReceivablesPayablesViewProps> = (
         )}
       </div>
 
-      {/* Main Records Table (Desktop: >= md) */}
-      <div className="hidden md:block bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
+      {/* Main Records Table (Desktop: >= xl) */}
+      <div className="hidden xl:block bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>

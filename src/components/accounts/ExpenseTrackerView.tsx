@@ -490,10 +490,10 @@ export const ExpenseTrackerView: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile Card View (< md) with Edit & Delete */}
-        <div className="md:hidden space-y-3">
+        {/* Mobile & Tablet Card View (< xl) with Edit & Delete */}
+        <div className="xl:hidden grid grid-cols-1 md:grid-cols-2 gap-3">
           {filteredExpenses.length === 0 ? (
-            <div className="py-12 text-center text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+            <div className="col-span-full py-12 text-center text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
               <ReceiptText className="w-8 h-8 mx-auto mb-2 opacity-30" />
               <p>{language === 'bn' ? 'কোনো খরচের রেকর্ড পাওয়া যায়নি।' : 'No expense vouchers found.'}</p>
             </div>
@@ -501,7 +501,7 @@ export const ExpenseTrackerView: React.FC = () => {
             filteredExpenses.map((exp) => (
               <div
                 key={exp.id}
-                className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 p-3.5 space-y-2.5 shadow-xs hover:border-rose-300 transition-all"
+                className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 p-3.5 space-y-2.5 shadow-xs hover:border-rose-300 transition-all flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-2">
                   <div className="flex items-center gap-2">
@@ -564,8 +564,8 @@ export const ExpenseTrackerView: React.FC = () => {
           )}
         </div>
 
-        {/* Desktop Table View (>= md) with Actions */}
-        <div className="hidden md:block bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/70 overflow-hidden shadow-xs">
+        {/* Desktop Table View (>= xl) with Actions */}
+        <div className="hidden xl:block bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/70 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>

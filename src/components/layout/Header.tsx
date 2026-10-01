@@ -26,7 +26,6 @@ import {
   Clock,
   Package,
   CheckCircle2,
-  Sparkles,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { formatBDT } from '../../utils/formatters';
@@ -38,7 +37,6 @@ interface HeaderProps {
   onOpenNewProduct: () => void;
   onOpenExpense: () => void;
   onOpenCollectDue: () => void;
-  onOpenAiAssistant?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -48,7 +46,6 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenNewProduct,
   onOpenExpense,
   onOpenCollectDue,
-  onOpenAiAssistant,
 }) => {
   const {
     businessProfile,
@@ -67,6 +64,7 @@ export const Header: React.FC<HeaderProps> = ({
     dueReminders,
     lowStockProducts,
     outOfStockProducts,
+    activeTab,
     setActiveTab,
   } = useApp();
 
@@ -80,6 +78,14 @@ export const Header: React.FC<HeaderProps> = ({
   const [globalSearch, setGlobalSearch] = useState('');
   const [showSearchPopover, setShowSearchPopover] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  // Close search, menus & notifications on activeTab change
+  useEffect(() => {
+    setShowQuickActions(false);
+    setShowUserDropdown(false);
+    setShowNotifications(false);
+    setShowSearchPopover(false);
+  }, [activeTab]);
 
   // Close search & notifications on click outside
   useEffect(() => {
@@ -164,47 +170,47 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="no-print sticky top-0 z-30 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 transition-colors shadow-xs">
       <div className="px-2 sm:px-4 lg:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-3">
-        {/* Left: Mobile Menu Toggle & Brand */}
+        {/* Left: Mobile & Tablet Menu Toggle & Brand */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
             onClick={onOpenMobileMenu}
-            className="lg:hidden p-1.5 sm:p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 focus:outline-none shrink-0"
+            className="xl:hidden p-1.5 sm:p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 focus:outline-none shrink-0"
             title="Open Menu"
           >
             <Menu className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
             {businessProfile.logoUrl ? (
               <img
                 src={businessProfile.logoUrl}
                 alt={businessProfile.businessName}
-                className="w-8 h-8 sm:w-10 sm:h-10 object-contain rounded-lg border border-slate-200 dark:border-slate-700 bg-white p-0.5 shrink-0"
+                className="w-8 h-8 sm:w-9 sm:h-9 object-contain rounded-xl border border-slate-200 dark:border-slate-700 bg-white p-0.5 shrink-0"
               />
             ) : (
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-amber-500 via-orange-600 to-red-600 flex items-center justify-center text-white shadow-md shadow-amber-500/20 shrink-0">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-amber-500 via-orange-600 to-red-600 flex items-center justify-center text-white shadow-md shadow-amber-500/20 shrink-0">
                 <Wrench className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             )}
 
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-sm sm:text-lg tracking-tight text-slate-900 dark:text-white truncate">
+                <span className="font-extrabold text-sm sm:text-base tracking-tight text-slate-900 dark:text-white truncate">
                   {businessProfile.businessName}
                 </span>
                 <span className="text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 uppercase tracking-wider hidden sm:inline-block shrink-0">
                   AutoManage
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 hidden md:block">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 hidden xl:block">
                 {businessProfile.tagline}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Center: Global Quick Price / Product / Contact Search */}
-        <div ref={searchRef} className="relative flex-1 max-w-xs sm:max-w-md hidden md:block">
+        {/* Center: Global Quick Price / Product / Contact Search - Desktop Only */}
+        <div ref={searchRef} className="relative flex-1 max-w-xs sm:max-w-md hidden xl:block">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -355,29 +361,16 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right: Quick Action, Theme Switcher, Language Switcher, User */}
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-          {/* RM AI Business Assistant Button */}
-          {onOpenAiAssistant && (
-            <button
-              type="button"
-              onClick={onOpenAiAssistant}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-700 hover:from-violet-500 hover:to-indigo-500 active:scale-95 text-white font-bold text-xs shadow-xs transition-all border border-indigo-400/30"
-              title="RM AutoManage AI Business Assistant (এআই ব্যবসায়িক উপদেষ্টা)"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-              <span className="hidden lg:inline">এআই সহকারী</span>
-              <span className="lg:hidden text-[11px]">AI</span>
-            </button>
-          )}
-
-          {/* Quick Action Button */}
+          {/* Quick Action Button - Compact on Mobile & Tablet, Full on Desktop */}
           <div className="relative">
             <button
               onClick={() => setShowQuickActions(!showQuickActions)}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 font-bold text-xs shadow-xs transition-all"
+              className="flex items-center gap-1.5 p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 font-bold text-xs shadow-xs transition-all"
+              title="Quick Actions"
             >
               <PlusCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">Quick Action</span>
-              <ChevronDown className="w-3 h-3 opacity-80" />
+              <span className="hidden xl:inline">Quick Action</span>
+              <ChevronDown className="w-3 h-3 opacity-80 hidden sm:inline" />
             </button>
 
             {showQuickActions && (
@@ -672,21 +665,21 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* Language Switcher - Desktop only (on mobile it lives inside Profile menu) */}
+          {/* Language Switcher - Desktop only (on mobile & tablet it lives inside Profile menu) */}
           <button
             onClick={() => setLanguage(language === 'en' ? 'bn' : 'en')}
-            className="hidden md:flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="hidden xl:flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             title="Switch Language (বাংলা / English)"
           >
             <Globe className="w-3.5 h-3.5 text-slate-500" />
             <span>{language === 'en' ? 'বাংলা' : 'English'}</span>
           </button>
 
-          {/* Theme Toggle Button - Desktop only (on mobile it lives inside Profile menu) */}
+          {/* Theme Toggle Button - Desktop only (on mobile & tablet it lives inside Profile menu) */}
           <button
             type="button"
             onClick={toggleTheme}
-            className="hidden md:flex p-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors active:scale-95"
+            className="hidden xl:flex p-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors active:scale-95"
             title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
           >
             {theme === 'light' ? (
@@ -705,7 +698,7 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-900 text-white dark:bg-amber-500 dark:text-slate-950 flex items-center justify-center font-bold text-xs shadow-xs">
                 {currentUser.name.charAt(0)}
               </div>
-              <div className="hidden md:block text-left">
+              <div className="hidden xl:block text-left">
                 <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 line-clamp-1">
                   {currentUser.name}
                 </div>

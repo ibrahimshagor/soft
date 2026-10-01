@@ -61,28 +61,29 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile, onCloseMobile })
 
   return (
     <>
-      {/* Mobile Backdrop */}
+      {/* Mobile & Tablet Backdrop */}
       {isOpenMobile && (
         <div
-          className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-xs lg:hidden no-print"
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs xl:hidden no-print"
           onClick={onCloseMobile}
         />
       )}
 
       {/* Sidebar Container */}
       <aside
-        className={`no-print fixed lg:relative inset-y-0 left-0 z-40 lg:z-10 w-64 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 flex flex-col border-r border-slate-200 dark:border-slate-800 transition-transform duration-200 ease-in-out shrink-0 h-full overflow-hidden ${
-          isOpenMobile ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        className={`no-print fixed xl:relative inset-y-0 left-0 z-50 xl:z-10 w-64 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 flex flex-col border-r border-slate-200 dark:border-slate-800 transition-transform duration-200 ease-in-out shrink-0 h-full overflow-hidden shadow-2xl xl:shadow-none ${
+          isOpenMobile ? 'translate-x-0' : '-translate-x-full xl:translate-x-0'
         }`}
       >
-        {/* Mobile Header in Drawer */}
-        <div className="lg:hidden flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
-          <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white text-base">
+        {/* Mobile & Tablet Header in Drawer */}
+        <div className="xl:hidden flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+          <div className="flex items-center gap-2 font-black text-slate-900 dark:text-white text-base">
             <span>RM AutoManage</span>
           </div>
           <button
             onClick={onCloseMobile}
-            className="p-1 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800"
+            className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-200 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-700 transition-colors"
+            title="Close Drawer"
           >
             <X className="w-5 h-5" />
           </button>

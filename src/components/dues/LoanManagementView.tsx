@@ -18,18 +18,22 @@ import {
   Clock,
   X,
   AlertCircle,
+  AlertTriangle,
   Tag,
   CreditCard,
   Download,
+  Send,
+  Eye,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { LoanParty, LoanRecord, LoanEntityType, InstallmentScheduleItem } from '../../types';
-import { formatBDT, formatDate, exportToCSV } from '../../utils/formatters';
+import { formatBDT, formatDate, sanitizePhoneNumber, exportToCSV } from '../../utils/formatters';
 import {
   getMatchingAccountForPaymentMethod,
   getMatchingPaymentMethodForAccount,
 } from '../../utils/paymentAccountLink';
 import { ManualLoanModal } from './ManualLoanModal';
+import { LoanPartyLedgerModal } from './LoanPartyLedgerModal';
 
 const LoanManagementViewInner: React.FC = () => {
   const {
@@ -40,11 +44,13 @@ const LoanManagementViewInner: React.FC = () => {
     payLoanInstallment,
     accounts,
     paymentMethods,
+    dueReminders,
+    businessProfile,
     language,
   } = useApp();
 
   // Sub-tabs: 'records' | 'parties'
-  const [subTab, setSubTab] = useState<'records' | 'parties'>('records');
+  const [subTab, setSubTab] = useState<'records' | 'parties'>('parties');
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'borrow' | 'lend' | 'repay_borrow' | 'collect_lend'>('all');
 
@@ -53,6 +59,7 @@ const LoanManagementViewInner: React.FC = () => {
   const [isAddPartyModalOpen, setIsAddPartyModalOpen] = useState(false);
   const [isManualLoanModalOpen, setIsManualLoanModalOpen] = useState(false);
   const [manualLoanInitialType, setManualLoanInitialType] = useState<'borrow' | 'lend'>('borrow');
+  const [selectedPartyForLedger, setSelectedPartyForLedger] = useState<LoanParty | null>(null);
 
   // Installment schedule modal state
   const [selectedRecordForInstallments, setSelectedRecordForInstallments] = useState<LoanRecord | null>(null);
@@ -273,6 +280,49 @@ const LoanManagementViewInner: React.FC = () => {
       ];
       exportToCSV(`RM_Loan_Parties_${new Date().toISOString().slice(0, 10)}.csv`, rows);
     }
+  };
+
+  const handleSendReminderWhatsApp = (partyOrRecord: { name?: string; partyName?: string; phone?: string; currentPayable?: number; currentReceivable?: number; amount?: number; type?: string; companyName?: string }) => {
+    const rawPhone = partyOrRecord.phone || '';
+    const phone = sanitizePhoneNumber(rawPhone);
+    if (!phone) {
+      alert(language === 'bn' ? 'কোনো সঠিক মোবাইল বা হোয়াটসঅ্যাপ নম্বর পাওয়া যায়নি।' : 'No valid WhatsApp phone number found.');
+      return;
+    }
+
+    const name = partyOrRecord.name || partyOrRecord.partyName || 'সম্মানিত গ্রাহক';
+    const payable = partyOrRecord.currentPayable ?? (partyOrRecord.type === 'borrow' ? partyOrRecord.amount : 0) ?? 0;
+    const receivable = partyOrRecord.currentReceivable ?? (partyOrRecord.type === 'lend' ? partyOrRecord.amount : 0) ?? 0;
+
+    let text = '';
+    if (receivable > 0) {
+      text = `আসসালামু আলাইকুম ${name} সাহেব, ${businessProfile.businessName} হতে বিনীতভাবে জানানো যাচ্ছে যে, আপনার কাছে আমাদের প্রদত্ত ধার/হাওলাত বাবদ ${formatBDT(receivable)} পাওনা রয়েছে। অনুগ্রহপূর্বক পরিশোধের সম্ভাব্য তারিখ জানিয়ে সহযোগিতা করার অনুরোধ রইল। ধন্যবাদ। যোগাযোগ: ${businessProfile.phone}`;
+    } else if (payable > 0) {
+      text = `সম্মানিত ${name} (${partyOrRecord.companyName || 'ঋণদাতা'}), ${businessProfile.businessName} থেকে জানানো যাচ্ছে যে, আপনাদের নিকট আমাদের গৃহীত লোন/ধারের অবশিষ্ট দেনা ${formatBDT(payable)}। আমরা দ্রুত পরিশোধের ব্যবস্থা নিচ্ছি। যোগাযোগ: ${businessProfile.phone}`;
+    } else {
+      text = `আসসালামু আলাইকুম ${name} সাহেব, ${businessProfile.businessName} থেকে যোগাযোগ করা হচ্ছে। আপনার সাথে আমাদের বর্তমান লোন/হাওলাত হিসাব সম্পূর্ণ নিষ্পন্ন রয়েছে। ধন্যবাদ।`;
+    }
+
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+  };
+
+  const getPartyDueDate = (partyId: string) => {
+    const reminder = dueReminders?.find((r) => r.partyId === partyId);
+    if (reminder?.dueDate) return reminder.dueDate;
+    const withDueDate = safeLoanRecords.filter((r) => r.partyId === partyId && r.dueDate);
+    if (withDueDate.length > 0) {
+      return withDueDate[withDueDate.length - 1].dueDate;
+    }
+    return undefined;
+  };
+
+  const getPartyDueStatus = (dueDate?: string) => {
+    if (!dueDate) return 'NO_DATE';
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (dueDate < todayStr) return 'OVERDUE';
+    if (dueDate === todayStr) return 'DUE_TODAY';
+    return 'UPCOMING';
   };
 
   const getEntityBadge = (type: LoanEntityType) => {
@@ -598,91 +648,169 @@ const LoanManagementViewInner: React.FC = () => {
             </div>
           ) : (
             <>
-              {/* Mobile Card List View (sm:hidden) */}
-              <div className="sm:hidden p-3 space-y-2.5">
-                {filteredRecords.map((r) => (
-                  <div
-                    key={r.id}
-                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/90 shadow-xs space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="font-mono font-bold text-xs text-slate-900 dark:text-white block">
-                          {r.voucherNo}
-                        </span>
-                        <span className="text-[10px] text-slate-400">{formatDate(r.date)}</span>
-                      </div>
-                      <div>{getTxTypeBadge(r.type)}</div>
-                    </div>
+              {/* Mobile & Tablet Card List View (xl:hidden) */}
+              <div className="xl:hidden p-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                {filteredRecords.map((r) => {
+                  const party = safeLoanParties.find((p) => p && p.id === r.partyId);
+                  const phone = party?.phone || '';
+                  const dueStatus = getPartyDueStatus(r.dueDate);
 
-                    <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800">
-                      <div>
-                        <div className="font-bold text-xs text-slate-900 dark:text-white">{r.partyName}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">{getEntityBadge(r.partyType)}</div>
-                      </div>
-                      <div className="text-right">
-                        <span
-                          className={`text-base font-black ${
-                            r.type === 'borrow' || r.type === 'collect_lend'
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : 'text-rose-600 dark:text-rose-400'
-                          }`}
-                        >
-                          {r.type === 'borrow' || r.type === 'collect_lend' ? '+' : '-'} {formatBDT(r.amount)}
-                        </span>
-                        <div className="text-[10px] text-slate-500 font-medium">{r.accountName}</div>
-                      </div>
-                    </div>
+                  return (
+                    <div
+                      key={r.id}
+                      className="p-3.5 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-800/90 shadow-xs space-y-3 flex flex-col justify-between"
+                    >
+                      {/* Card Header: Type badge & Status */}
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                        <div className="flex items-center gap-1.5">
+                          {getTxTypeBadge(r.type)}
+                          <span className="font-mono text-[10px] text-slate-400">
+                            {r.voucherNo}
+                          </span>
+                        </div>
 
-                    {(r.dueDate || r.notes) && (
-                      <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-900/60 text-[11px] text-slate-600 dark:text-slate-300">
-                        {r.dueDate && (
-                          <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 mb-0.5">
-                            <Clock className="w-3 h-3" />
-                            <span>মেয়াদ: {formatDate(r.dueDate)}</span>
-                          </div>
+                        {dueStatus === 'OVERDUE' && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300">
+                            <AlertTriangle className="w-3 h-3" />
+                            <span>Overdue</span>
+                          </span>
                         )}
-                        {r.notes && <div className="truncate">{r.notes}</div>}
+                        {dueStatus === 'DUE_TODAY' && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                            <Clock className="w-3 h-3" />
+                            <span>Due Today</span>
+                          </span>
+                        )}
+                        {dueStatus === 'UPCOMING' && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                            <span>Upcoming</span>
+                          </span>
+                        )}
+                        {dueStatus === 'NO_DATE' && (
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            {formatDate(r.date)}
+                          </span>
+                        )}
                       </div>
-                    )}
 
-                    <div className="pt-1 flex items-center justify-end">
-                      {r.isInstallment && r.schedule && r.schedule.length > 0 ? (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedRecordForInstallments(r)}
-                          className="w-full py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-xs active:scale-95 transition-all text-center"
-                        >
-                          {language === 'bn' ? 'কিস্তি শিডিউল দেখুন' : 'Installments'}
-                        </button>
-                      ) : r.type === 'borrow' ? (
-                        <button
-                          type="button"
-                          onClick={() => openNewTransaction('repay_borrow', r.partyId)}
-                          className="w-full py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-xs active:scale-95 transition-all text-center"
-                        >
-                          {language === 'bn' ? 'দেনা শোধ করুন (Repay)' : 'Repay'}
-                        </button>
-                      ) : r.type === 'lend' ? (
-                        <button
-                          type="button"
-                          onClick={() => openNewTransaction('collect_lend', r.partyId)}
-                          className="w-full py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-xs active:scale-95 transition-all text-center"
-                        >
-                          {language === 'bn' ? 'ধার আদায় করুন (Collect)' : 'Collect'}
-                        </button>
-                      ) : (
-                        <span className="text-slate-400 text-xs font-semibold">
-                          ✓ {language === 'bn' ? 'নিষ্পন্ন' : 'Settled'}
-                        </span>
+                      {/* Party details & Phone */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="font-bold text-sm text-slate-900 dark:text-white">{r.partyName}</div>
+                          <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1.5">
+                            {getEntityBadge(r.partyType)}
+                            <span>•</span>
+                            <span className="text-slate-500 font-medium">{r.accountName}</span>
+                          </div>
+                        </div>
+
+                        {phone && (
+                          <a
+                            href={`tel:${phone}`}
+                            className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 flex items-center gap-1 text-xs shrink-0"
+                          >
+                            <Phone className="w-3.5 h-3.5 text-amber-500" />
+                            <span>{phone}</span>
+                          </a>
+                        )}
+                      </div>
+
+                      {/* Amount and Due Date Box */}
+                      <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-semibold">
+                            {r.type === 'borrow' || r.type === 'collect_lend'
+                              ? (language === 'bn' ? 'টাকা গ্রহণ (In)' : 'Cash In')
+                              : (language === 'bn' ? 'টাকা প্রদান (Out)' : 'Cash Out')}
+                          </span>
+                          <span
+                            className={`text-base font-black ${
+                              r.type === 'borrow' || r.type === 'collect_lend'
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-rose-600 dark:text-rose-400'
+                            }`}
+                          >
+                            {r.type === 'borrow' || r.type === 'collect_lend' ? '+' : '-'} {formatBDT(r.amount)}
+                          </span>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="text-[10px] text-slate-400 block font-semibold">
+                            {language === 'bn' ? 'তাগাদা / মেয়াদ' : 'Due Date'}
+                          </span>
+                          <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+                            {r.dueDate ? formatDate(r.dueDate) : 'Open'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {r.notes && (
+                        <div className="text-[11px] text-slate-500 bg-slate-50 dark:bg-slate-900/40 p-2 rounded-lg truncate">
+                          {r.notes}
+                        </div>
                       )}
+
+                      {/* Action Buttons: WhatsApp, View Details, Transact */}
+                      <div className="pt-1 flex items-center justify-between gap-2">
+                        {phone && (
+                          <button
+                            type="button"
+                            onClick={() => handleSendReminderWhatsApp({ ...r, phone, name: r.partyName })}
+                            className="flex-1 py-1.5 px-2 rounded-xl border border-emerald-300 dark:border-emerald-800/60 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                            <span>{language === 'bn' ? 'তাগাদা' : 'WhatsApp'}</span>
+                          </button>
+                        )}
+
+                        {party && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedPartyForLedger(party)}
+                            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            title="View Ledger"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        )}
+
+                        {r.isInstallment && r.schedule && r.schedule.length > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedRecordForInstallments(r)}
+                            className="flex-1 py-1.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-xs active:scale-95 transition-all text-center"
+                          >
+                            {language === 'bn' ? 'কিস্তি শিডিউল' : 'Installments'}
+                          </button>
+                        ) : r.type === 'borrow' ? (
+                          <button
+                            type="button"
+                            onClick={() => openNewTransaction('repay_borrow', r.partyId)}
+                            className="flex-1 py-1.5 px-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs shadow-xs active:scale-95 transition-all text-center"
+                          >
+                            {language === 'bn' ? 'দেনা শোধ' : 'Pay Bill'}
+                          </button>
+                        ) : r.type === 'lend' ? (
+                          <button
+                            type="button"
+                            onClick={() => openNewTransaction('collect_lend', r.partyId)}
+                            className="flex-1 py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-xs active:scale-95 transition-all text-center"
+                          >
+                            {language === 'bn' ? 'টাকা আদায়' : 'Collect'}
+                          </button>
+                        ) : (
+                          <span className="text-slate-400 text-xs font-semibold px-2">
+                            ✓ {language === 'bn' ? 'নিষ্পন্ন' : 'Settled'}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
-              {/* Desktop Table View (hidden sm:block) */}
-              <div className="hidden sm:block overflow-x-auto">
+              {/* Desktop Table View (hidden xl:block) */}
+              <div className="hidden xl:block overflow-x-auto">
                 <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
                 <thead className="bg-slate-50 dark:bg-slate-800/70 text-[11px] font-bold text-slate-500 uppercase border-b border-slate-200 dark:border-slate-800">
                   <tr>
@@ -696,80 +824,96 @@ const LoanManagementViewInner: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
-                  {filteredRecords.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="p-3">
-                        <div className="font-mono font-bold text-slate-900 dark:text-white">{r.voucherNo}</div>
-                        <div className="text-[10px] text-slate-400">{formatDate(r.date)}</div>
-                      </td>
-                      <td className="p-3">
-                        <div className="font-bold text-slate-900 dark:text-white">{r.partyName}</div>
-                        <div className="text-[10px] text-slate-400">{getEntityBadge(r.partyType)}</div>
-                      </td>
-                      <td className="p-3">{getTxTypeBadge(r.type)}</td>
-                      <td className="p-3 text-right font-black text-sm">
-                        <span
-                          className={
-                            r.type === 'borrow' || r.type === 'collect_lend'
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : 'text-rose-600 dark:text-rose-400'
-                          }
-                        >
-                          {r.type === 'borrow' || r.type === 'collect_lend' ? '+' : '-'} {formatBDT(r.amount)}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <div className="font-semibold text-slate-800 dark:text-slate-200">{r.accountName}</div>
-                      </td>
-                      <td className="p-3 text-slate-500">
-                        {r.dueDate && (
-                          <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 mb-0.5">
-                            <Clock className="w-3 h-3" />
-                            <span>{formatDate(r.dueDate)}</span>
-                          </div>
-                        )}
-                        <div className="text-[11px] truncate max-w-xs">{r.notes || '—'}</div>
-                        {r.isInstallment && r.schedule && r.schedule.length > 0 && (
-                          <div className="mt-1">
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                              {r.schedule.filter((s) => s.isPaid).length}/{r.schedule.length} কিস্তি পরিশোধিত
-                            </span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="p-3 text-right">
-                        {r.isInstallment && r.schedule && r.schedule.length > 0 ? (
-                          <button
-                            type="button"
-                            onClick={() => setSelectedRecordForInstallments(r)}
-                            className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] shadow-xs active:scale-95 transition-all"
+                  {filteredRecords.map((r) => {
+                    const party = safeLoanParties.find((p) => p && p.id === r.partyId);
+
+                    return (
+                      <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="p-3">
+                          <div className="font-mono font-bold text-slate-900 dark:text-white">{r.voucherNo}</div>
+                          <div className="text-[10px] text-slate-400">{formatDate(r.date)}</div>
+                        </td>
+                        <td className="p-3">
+                          <div className="font-bold text-slate-900 dark:text-white">{r.partyName}</div>
+                          <div className="text-[10px] text-slate-400">{getEntityBadge(r.partyType)}</div>
+                        </td>
+                        <td className="p-3">{getTxTypeBadge(r.type)}</td>
+                        <td className="p-3 text-right font-black text-sm">
+                          <span
+                            className={
+                              r.type === 'borrow' || r.type === 'collect_lend'
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-rose-600 dark:text-rose-400'
+                            }
                           >
-                            {language === 'bn' ? 'কিস্তি শিডিউল' : 'Installments'}
-                          </button>
-                        ) : r.type === 'borrow' ? (
-                          <button
-                            type="button"
-                            onClick={() => openNewTransaction('repay_borrow', r.partyId)}
-                            className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] shadow-xs active:scale-95 transition-all"
-                          >
-                            {language === 'bn' ? 'দেনা শোধ' : 'Repay'}
-                          </button>
-                        ) : r.type === 'lend' ? (
-                          <button
-                            type="button"
-                            onClick={() => openNewTransaction('collect_lend', r.partyId)}
-                            className="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-bold text-[11px] shadow-xs active:scale-95 transition-all"
-                          >
-                            {language === 'bn' ? 'ধার আদায়' : 'Collect'}
-                          </button>
-                        ) : (
-                          <span className="text-slate-400 text-[10px]">
-                            {language === 'bn' ? 'নিষ্পন্ন' : 'Settled'}
+                            {r.type === 'borrow' || r.type === 'collect_lend' ? '+' : '-'} {formatBDT(r.amount)}
                           </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="p-3">
+                          <div className="font-semibold text-slate-800 dark:text-slate-200">{r.accountName}</div>
+                        </td>
+                        <td className="p-3 text-slate-500">
+                          {r.dueDate && (
+                            <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 mb-0.5">
+                              <Clock className="w-3 h-3" />
+                              <span>{formatDate(r.dueDate)}</span>
+                            </div>
+                          )}
+                          <div className="text-[11px] truncate max-w-xs">{r.notes || '—'}</div>
+                          {r.isInstallment && r.schedule && r.schedule.length > 0 && (
+                            <div className="mt-1">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                                {r.schedule.filter((s) => s.isPaid).length}/{r.schedule.length} কিস্তি পরিশোধিত
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {party && (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedPartyForLedger(party)}
+                                className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                                title="View Details / Ledger"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {r.isInstallment && r.schedule && r.schedule.length > 0 ? (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedRecordForInstallments(r)}
+                                className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] shadow-xs active:scale-95 transition-all"
+                              >
+                                {language === 'bn' ? 'কিস্তি শিডিউল' : 'Installments'}
+                              </button>
+                            ) : r.type === 'borrow' ? (
+                              <button
+                                type="button"
+                                onClick={() => openNewTransaction('repay_borrow', r.partyId)}
+                                className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-[11px] shadow-xs active:scale-95 transition-all"
+                              >
+                                {language === 'bn' ? 'দেনা শোধ' : 'Repay'}
+                              </button>
+                            ) : r.type === 'lend' ? (
+                              <button
+                                type="button"
+                                onClick={() => openNewTransaction('collect_lend', r.partyId)}
+                                className="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-bold text-[11px] shadow-xs active:scale-95 transition-all"
+                              >
+                                {language === 'bn' ? 'ধার আদায়' : 'Collect'}
+                              </button>
+                            ) : (
+                              <span className="text-slate-400 text-[10px]">
+                                {language === 'bn' ? 'নিষ্পন্ন' : 'Settled'}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -777,96 +921,197 @@ const LoanManagementViewInner: React.FC = () => {
         )}
         </div>
       ) : (
-        /* Loan Parties Directory */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        /* Loan Parties Directory - Styled Identical to Receivables & Payables */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {filteredParties.length === 0 ? (
             <div className="col-span-full p-8 text-center text-slate-400 text-xs bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
               {language === 'bn' ? 'কোনো লোন পার্টনার পাওয়া যায়নি।' : 'No loan parties found.'}
             </div>
           ) : (
-            filteredParties.map((p) => (
-              <div
-                key={p.id}
-                className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between gap-3 hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="font-bold text-slate-900 dark:text-white text-sm">{p.name}</h3>
-                      {p.companyName && (
-                        <div className="text-xs text-slate-500 font-medium flex items-center gap-1 mt-0.5">
-                          <Building2 className="w-3 h-3 text-slate-400" />
-                          <span>{p.companyName}</span>
-                        </div>
+            filteredParties.map((p) => {
+              const dueDate = getPartyDueDate(p.id);
+              const dueStatus = getPartyDueStatus(dueDate);
+
+              return (
+                <div
+                  key={p.id}
+                  className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-3.5 space-y-3 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between"
+                >
+                  <div className="space-y-3">
+                    {/* Card Header: Type badge & Status */}
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {getEntityBadge(p.entityType)}
+                        {p.currentPayable > 0 && p.currentReceivable === 0 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                            <Landmark className="w-3 h-3" />
+                            <span>{language === 'bn' ? 'ঋণ দেনা' : 'Payable'}</span>
+                          </span>
+                        )}
+                        {p.currentReceivable > 0 && p.currentPayable === 0 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
+                            <Coins className="w-3 h-3" />
+                            <span>{language === 'bn' ? 'ধার পাওনা' : 'Receivable'}</span>
+                          </span>
+                        )}
+                        {p.currentPayable === 0 && p.currentReceivable === 0 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                            <span>{language === 'bn' ? 'নিষ্পন্ন' : 'Settled'}</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Status */}
+                      {dueStatus === 'OVERDUE' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300">
+                          <AlertTriangle className="w-3 h-3" />
+                          <span>Overdue</span>
+                        </span>
+                      )}
+                      {dueStatus === 'DUE_TODAY' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                          <Clock className="w-3 h-3" />
+                          <span>Due Today</span>
+                        </span>
+                      )}
+                      {dueStatus === 'UPCOMING' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                          <span>Upcoming</span>
+                        </span>
+                      )}
+                      {dueStatus === 'NO_DATE' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                          <span>Open Terms</span>
+                        </span>
                       )}
                     </div>
-                    {getEntityBadge(p.entityType)}
+
+                    {/* Party Details & Contact */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h4 className="font-bold text-slate-900 dark:text-white text-sm">
+                          {p.name}
+                        </h4>
+                        {p.companyName && (
+                          <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1 mt-0.5">
+                            <Building2 className="w-3 h-3 text-slate-400" />
+                            <span>{p.companyName}</span>
+                          </div>
+                        )}
+                        {p.address && (
+                          <div className="text-[10px] text-slate-400 mt-0.5 truncate max-w-xs">
+                            {p.address}
+                          </div>
+                        )}
+                      </div>
+
+                      {p.phone && (
+                        <a
+                          href={`tel:${p.phone}`}
+                          className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white flex items-center gap-1 text-xs shrink-0"
+                          title="Call Phone"
+                        >
+                          <Phone className="w-3.5 h-3.5 text-amber-500" />
+                          <span>{p.phone}</span>
+                        </a>
+                      )}
+                    </div>
+
+                    {/* Amount & Due Date Banner */}
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-semibold">
+                          {p.currentReceivable > 0
+                            ? (language === 'bn' ? 'বকেয়া পাওনা (ধার)' : 'Lent Receivable')
+                            : p.currentPayable > 0
+                            ? (language === 'bn' ? 'প্রদেয় দেনা (লোন)' : 'Loan Payable')
+                            : (language === 'bn' ? 'বর্তমান ব্যালেন্স' : 'Current Balance')}
+                        </span>
+                        <span
+                          className={`text-base font-black ${
+                            p.currentReceivable > 0
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : p.currentPayable > 0
+                              ? 'text-rose-600 dark:text-rose-400'
+                              : 'text-slate-500 dark:text-slate-400'
+                          }`}
+                        >
+                          {p.currentReceivable > 0
+                            ? formatBDT(p.currentReceivable)
+                            : p.currentPayable > 0
+                            ? formatBDT(p.currentPayable)
+                            : '৳ 0'}
+                        </span>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-[10px] text-slate-400 block font-semibold">
+                          {language === 'bn' ? 'তাগাদা / মেয়াদ' : 'Due Date'}
+                        </span>
+                        <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+                          {dueDate ? formatDate(dueDate) : 'Open'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="mt-2 text-xs text-slate-500 flex items-center gap-1">
-                    <Phone className="w-3 h-3 text-slate-400" />
-                    <span>{p.phone}</span>
-                  </div>
+                  {/* Action Buttons: WhatsApp, View Details, Transact */}
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                    {p.phone && (
+                      <button
+                        type="button"
+                        onClick={() => handleSendReminderWhatsApp(p)}
+                        className="flex-1 py-1.5 px-2 rounded-xl border border-emerald-300 dark:border-emerald-800/60 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                        title="Send WhatsApp Reminder"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>{language === 'bn' ? 'তাগাদা মেসেজ' : 'WhatsApp'}</span>
+                      </button>
+                    )}
 
-                  {p.address && <div className="text-[11px] text-slate-400 mt-0.5">{p.address}</div>}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPartyForLedger(p)}
+                      className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      title={language === 'bn' ? 'লেজার ও বিস্তারিত দেখুন' : 'View Ledger'}
+                    >
+                      <Eye className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+                    </button>
 
-                  {/* Financial Status Box */}
-                  <div className="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60 space-y-1.5 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-500">{language === 'bn' ? 'আমাদের দেনা (Payable):' : 'Our Debt (Payable):'}</span>
-                      <span className={`font-black ${p.currentPayable > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'}`}>
-                        {formatBDT(p.currentPayable)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-500">{language === 'bn' ? 'আমাদের পাওনা (Receivable):' : 'Our Lent (Receivable):'}</span>
-                      <span className={`font-black ${p.currentReceivable > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
-                        {formatBDT(p.currentReceivable)}
-                      </span>
-                    </div>
+                    {p.currentPayable > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => openNewTransaction('repay_borrow', p.id)}
+                        className="flex-1 py-1.5 px-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs shadow-sm active:scale-95 transition-all text-center"
+                      >
+                        {language === 'bn' ? 'দেনা পরিশোধ' : 'Pay Bill'}
+                      </button>
+                    )}
+
+                    {p.currentReceivable > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => openNewTransaction('collect_lend', p.id)}
+                        className="flex-1 py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-sm active:scale-95 transition-all text-center"
+                      >
+                        {language === 'bn' ? 'টাকা আদায়' : 'Collect'}
+                      </button>
+                    )}
+
+                    {p.currentPayable === 0 && p.currentReceivable === 0 && (
+                      <button
+                        type="button"
+                        onClick={() => openNewTransaction('borrow', p.id)}
+                        className="flex-1 py-1.5 px-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-xs shadow-sm active:scale-95 transition-all text-center"
+                      >
+                        {language === 'bn' ? '+ লেনদেন' : '+ Entry'}
+                      </button>
+                    )}
                   </div>
                 </div>
-
-                {/* Party Actions */}
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
-                  {p.currentPayable > 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => openNewTransaction('repay_borrow', p.id)}
-                      className="flex-1 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-xs transition-colors text-center"
-                    >
-                      {language === 'bn' ? 'দেনা পরিশোধ' : 'Repay'}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => openNewTransaction('borrow', p.id)}
-                      className="flex-1 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 text-xs font-bold transition-colors text-center"
-                    >
-                      {language === 'bn' ? '+ ঋণ গ্রহণ' : '+ Borrow'}
-                    </button>
-                  )}
-
-                  {p.currentReceivable > 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => openNewTransaction('collect_lend', p.id)}
-                      className="flex-1 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold shadow-xs transition-colors text-center"
-                    >
-                      {language === 'bn' ? 'ধার আদায়' : 'Collect'}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => openNewTransaction('lend', p.id)}
-                      className="flex-1 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-xs font-bold transition-colors text-center"
-                    >
-                      {language === 'bn' ? '+ ধার প্রদান' : '+ Lend'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
@@ -1434,6 +1679,14 @@ const LoanManagementViewInner: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Loan Party Ledger & Details Modal */}
+      <LoanPartyLedgerModal
+        party={selectedPartyForLedger}
+        onClose={() => setSelectedPartyForLedger(null)}
+        onOpenTransaction={(type, partyId) => openNewTransaction(type, partyId)}
+        onOpenInstallmentSchedule={(record) => setSelectedRecordForInstallments(record)}
+      />
 
       {/* Manual Loan / Hawlat Modal */}
       <ManualLoanModal

@@ -66,13 +66,15 @@ const AuthenticatedApp: React.FC = () => {
     if (activeTab === 'pos') {
       setIsNewSaleOpen(true);
     }
+    // Always close left drawer whenever activeTab changes
+    setIsMobileMenuOpen(false);
   }, [activeTab]);
 
   return (
     <div className="min-h-[100dvh] h-[100dvh] flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased transition-colors duration-200 overflow-hidden">
       {/* Top Application Bar */}
       <Header
-        onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
+        onOpenMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
         onOpenNewSale={() => setIsNewSaleOpen(true)}
         onOpenNewPurchase={() => setIsNewPurchaseOpen(true)}
         onOpenNewProduct={() => setIsNewProductOpen(true)}
@@ -82,7 +84,6 @@ const AuthenticatedApp: React.FC = () => {
           setDueInvoiceNo(undefined);
           setIsCollectDueOpen(true);
         }}
-        onOpenAiAssistant={() => setIsAiAssistantOpen(true)}
       />
 
       {/* Main Workspace with Fixed Sidebar */}
@@ -93,7 +94,7 @@ const AuthenticatedApp: React.FC = () => {
         />
 
         {/* Dynamic Content Panel */}
-        <main className="flex-1 flex flex-col overflow-y-auto no-scrollbar overflow-x-hidden min-w-0 min-h-0 pb-20 md:pb-6 overscroll-y-contain touch-pan-y">
+        <main className="flex-1 flex flex-col overflow-y-auto no-scrollbar overflow-x-hidden min-w-0 min-h-0 pb-24 xl:pb-6 overscroll-y-contain touch-pan-y">
           <div className="flex-1 p-3 sm:p-5 lg:p-6">
             {activeTab === 'dashboard' && (
               <Dashboard
@@ -227,7 +228,7 @@ const AuthenticatedApp: React.FC = () => {
       )}
 
       {/* Floating AI Business Assistant Button */}
-      <div className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-40">
+      <div className="fixed bottom-20 xl:bottom-6 right-4 sm:right-6 z-30">
         <button
           type="button"
           onClick={() => setIsAiAssistantOpen(true)}
