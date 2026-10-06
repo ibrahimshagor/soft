@@ -30,8 +30,17 @@ export class ErrorBoundary extends Component<Props, State> {
 
   private handleResetCache = () => {
     try {
+      const profile = localStorage.getItem('RM_AUTOMANAGE_STORAGE_V1_profile');
+      const users = localStorage.getItem('RM_AUTOMANAGE_STORAGE_V1_users');
+      const curUser = localStorage.getItem('RM_AUTOMANAGE_STORAGE_V1_current_user_id');
+      const archives = localStorage.getItem('RM_RESET_ARCHIVES');
       localStorage.clear();
       sessionStorage.clear();
+      if (profile) localStorage.setItem('RM_AUTOMANAGE_STORAGE_V1_profile', profile);
+      if (users) localStorage.setItem('RM_AUTOMANAGE_STORAGE_V1_users', users);
+      if (curUser) localStorage.setItem('RM_AUTOMANAGE_STORAGE_V1_current_user_id', curUser);
+      if (archives) localStorage.setItem('RM_RESET_ARCHIVES', archives);
+      localStorage.setItem('RM_CLEAN_SLATE_MODE', 'true');
     } catch (e) {
       console.error(e);
     }

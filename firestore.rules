@@ -1,0 +1,79 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default rule for all documents: allow read and write for authenticated users (including anonymous auth)
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Specific collection matchers to ensure full CRUD support
+    match /products/{productId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /customers/{customerId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /suppliers/{supplierId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /accounts/{accountId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /sales/{saleId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /purchases/{purchaseId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /expenses/{expenseId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /incomes/{incomeId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /stockAdjustments/{adjustmentId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /loanParties/{partyId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /loanRecords/{recordId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /paymentRecords/{recordId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /dailyClosings/{closingId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /auditLogs/{logId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /users/{userId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /settings/{settingId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /_connection_test/{testId} {
+      allow read, write: if true;
+    }
+  }
+}

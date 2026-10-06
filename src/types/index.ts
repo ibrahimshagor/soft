@@ -517,3 +517,39 @@ export type ActiveTab =
   | 'expenses'
   | 'reports'
   | 'settings';
+
+export interface ResetArchive {
+  id: string;
+  timestamp: string;
+  resetByUserId: string;
+  resetByUserName: string;
+  reason?: string;
+  summary: {
+    salesCount: number;
+    purchasesCount: number;
+    productsCount: number;
+    customersCount: number;
+    suppliersCount: number;
+    loanPartiesCount: number;
+    loanRecordsCount: number;
+    expensesCount: number;
+    incomesCount: number;
+    paymentRecordsCount: number;
+    totalSalesVolume: number;
+    totalDueVolume: number;
+  };
+  snapshot: {
+    sales: Sale[];
+    purchases: Purchase[];
+    products: Product[];
+    customers: Customer[];
+    suppliers: Supplier[];
+    accounts: Account[];
+    expenses: Expense[];
+    incomes: Income[];
+    paymentRecords: PaymentRecord[];
+    loanParties: LoanParty[];
+    loanRecords: LoanRecord[];
+    stockAdjustments: StockAdjustment[];
+  };
+}

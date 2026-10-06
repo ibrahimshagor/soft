@@ -27,6 +27,7 @@ import {
   LoanRecord,
   InstallmentFrequency,
   InstallmentScheduleItem,
+  ResetArchive,
 } from '../types';
 import {
   initialBusinessProfile,
@@ -51,6 +52,7 @@ import { Language, translations } from '../utils/translations';
 import {
   setFirestoreDoc,
   deleteFirestoreDoc,
+  clearFirestoreCollection,
   subscribeToCollection,
   subscribeToDoc,
   syncAllToFirestore as bulkSyncFirestore,
@@ -290,7 +292,10 @@ interface AppContextType {
   importBackup: (jsonString: string) => boolean;
   resetToDefaultData: () => void;
   resetToSeedData: () => void;
-  resetToCleanFreshData: () => void;
+  resetToCleanFreshData: (reason?: string) => void;
+  resetArchives: ResetArchive[];
+  restoreFromArchive: (archiveId: string) => Promise<boolean>;
+  deleteArchive: (archiveId: string) => void;
 
   // Firebase Cloud Sync
   isCloudSyncing: boolean;
@@ -349,14 +354,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        const resolvedOwner =
-          parsed.ownerName && parsed.ownerName !== 'Engr. Rezaul Karim'
-            ? parsed.ownerName
-            : initialBusinessProfile.ownerName; // 'আব্দুর রহিম রনি'
         return {
           ...initialBusinessProfile,
           ...parsed,
-          ownerName: resolvedOwner,
+          ownerName: parsed.ownerName || initialBusinessProfile.ownerName,
+          businessName: parsed.businessName || initialBusinessProfile.businessName,
           proprietorTitle: parsed.proprietorTitle || initialBusinessProfile.proprietorTitle,
           invoiceNotes: parsed.invoiceNotes || initialBusinessProfile.invoiceNotes,
           invoiceSignatureLabel: parsed.invoiceSignatureLabel || initialBusinessProfile.invoiceSignatureLabel,
@@ -367,6 +369,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     return initialBusinessProfile;
   });
+
   const [users, setUsers] = useState<User[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_users`);
     if (saved) {
@@ -381,16 +384,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     return initialUsers;
   });
+
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const savedUserId = localStorage.getItem(`${STORAGE_KEY}_current_user_id`);
     if (!savedUserId || savedUserId === 'LOGGED_OUT') {
       return null;
     }
-    const found = users.find((u) => u.id === savedUserId);
+    const savedUsersStr = localStorage.getItem(`${STORAGE_KEY}_users`);
+    let uList = initialUsers;
+    if (savedUsersStr) {
+      try {
+        const parsed = JSON.parse(savedUsersStr);
+        if (Array.isArray(parsed) && parsed.length > 0) uList = parsed;
+      } catch (e) {}
+    }
+    const found = uList.find((u) => u.id === savedUserId);
     if (found) return found;
-    const initFound = initialUsers.find((u) => u.id === savedUserId);
-    if (initFound) return initFound;
-    return null;
+    return uList[0] || null;
   });
 
   // Master Data State
@@ -478,41 +488,75 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return initialPaymentMethods;
   });
 
+  const isCleanSlate = localStorage.getItem('RM_CLEAN_SLATE_MODE') === 'true';
+
   // Entities State
   const [products, setProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_products`);
-    const list: Product[] = saved ? JSON.parse(saved) : initialProducts;
-    return list.map((p) => {
-      if (!p.productCode || p.productCode.trim() === '') {
-        const init = initialProducts.find((ip) => ip.id === p.id);
-        const defaultCode = init?.productCode || (p.sku ? p.sku.replace(/^[A-Z]+-/, '') : `PC-${p.id.slice(-4)}`);
-        return { ...p, productCode: defaultCode };
+    if (saved !== null) {
+      try {
+        const list: Product[] = JSON.parse(saved);
+        if (Array.isArray(list)) {
+          return list.map((p) => {
+            if (!p.productCode || p.productCode.trim() === '') {
+              const init = initialProducts.find((ip) => ip.id === p.id);
+              const defaultCode = init?.productCode || (p.sku ? p.sku.replace(/^[A-Z]+-/, '') : `PC-${p.id.slice(-4)}`);
+              return { ...p, productCode: defaultCode };
+            }
+            return p;
+          });
+        }
+      } catch (e) {
+        console.error(e);
       }
-      return p;
-    });
+    }
+    if (isCleanSlate) return [];
+    return initialProducts;
   });
+
   const [customers, setCustomers] = useState<Customer[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_customers`);
-    return saved ? JSON.parse(saved) : initialCustomers;
+    if (saved !== null) {
+      try {
+        const list = JSON.parse(saved);
+        if (Array.isArray(list)) return list;
+      } catch (e) {}
+    }
+    if (isCleanSlate) return [];
+    return initialCustomers;
   });
+
   const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_suppliers`);
-    return saved ? JSON.parse(saved) : initialSuppliers;
+    if (saved !== null) {
+      try {
+        const list = JSON.parse(saved);
+        if (Array.isArray(list)) return list;
+      } catch (e) {}
+    }
+    if (isCleanSlate) return [];
+    return initialSuppliers;
   });
+
   const [accounts, setAccounts] = useState<Account[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_accounts`);
-    let list: Account[] = saved ? JSON.parse(saved) : initialAccounts;
-    // Guarantee Nagad account exists
-    if (!list.some((a) => a.id === 'acc-5' || a.name.toLowerCase().includes('nagad') || a.name.toLowerCase().includes('নগদ'))) {
-      const nagadAcc: Account = {
-        id: 'acc-5',
-        name: 'Nagad Account (01711223344)',
-        type: 'mfs',
-        accountNumber: '01711-223344',
-        accountHolder: 'RM Automobiles Nagad',
-        balance: 24500,
-      };
-      list = [...list, nagadAcc];
+    let list: Account[] = [];
+    if (saved !== null) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) list = parsed;
+      } catch (e) {}
+    }
+    if (list.length === 0) {
+      list = [
+        {
+          id: 'acc-1',
+          name: 'দোকান ক্যাশ কাউন্টার (Cash Counter)',
+          type: 'cash',
+          balance: 0,
+          isDefault: true,
+        },
+      ];
     }
     return list;
   });
@@ -520,63 +564,97 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Transactions State
   const [sales, setSales] = useState<Sale[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_sales`);
-    const list: Sale[] = saved ? JSON.parse(saved) : initialSales;
-    return list.map((s) => {
-      if (s.sellerName === 'Engr. Rezaul Karim') {
-        return { ...s, sellerName: 'আব্দুর রহিম রনি' };
-      }
-      return s;
-    });
+    if (saved !== null) {
+      try {
+        const list = JSON.parse(saved);
+        if (Array.isArray(list)) return list;
+      } catch (e) {}
+    }
+    if (isCleanSlate) return [];
+    return initialSales;
   });
+
   const [purchases, setPurchases] = useState<Purchase[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_purchases`);
-    return saved ? JSON.parse(saved) : initialPurchases;
+    if (saved !== null) {
+      try {
+        const list = JSON.parse(saved);
+        if (Array.isArray(list)) return list;
+      } catch (e) {}
+    }
+    if (isCleanSlate) return [];
+    return initialPurchases;
   });
+
   const [paymentRecords, setPaymentRecords] = useState<PaymentRecord[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_payments`);
     return saved ? JSON.parse(saved) : [];
   });
+
   const [expenses, setExpenses] = useState<Expense[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_expenses`);
-    return saved ? JSON.parse(saved) : initialExpenses;
+    if (saved !== null) {
+      try {
+        const list = JSON.parse(saved);
+        if (Array.isArray(list)) return list;
+      } catch (e) {}
+    }
+    if (isCleanSlate) return [];
+    return initialExpenses;
   });
+
   const [incomes, setIncomes] = useState<Income[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_incomes`);
     return saved ? JSON.parse(saved) : [];
   });
+
   const [stockAdjustments, setStockAdjustments] = useState<StockAdjustment[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_stock_adj`);
     return saved ? JSON.parse(saved) : [];
   });
+
   const [salesReturns, setSalesReturns] = useState<SalesReturn[]>([]);
   const [dailyClosings, setDailyClosings] = useState<DailyClosing[]>([]);
+
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_audit`);
     return saved ? JSON.parse(saved) : initialAuditLogs;
   });
+
   const [loanParties, setLoanParties] = useState<LoanParty[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_loan_parties`);
-    if (saved) {
+    if (saved !== null) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) {
-        console.error(e);
-      }
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
     }
+    if (isCleanSlate) return [];
     return initialLoanParties;
   });
+
   const [loanRecords, setLoanRecords] = useState<LoanRecord[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_loan_records`);
+    if (saved !== null) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    if (isCleanSlate) return [];
+    return initialLoanRecords;
+  });
+
+  // Reset Archives State for recovery/restore
+  const [resetArchives, setResetArchives] = useState<ResetArchive[]>(() => {
+    const saved = localStorage.getItem('RM_RESET_ARCHIVES');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) {
-        console.error(e);
-      }
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
     }
-    return initialLoanRecords;
+    return [];
   });
 
   // Modals / View States
@@ -633,81 +711,133 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Listen to Products in real-time
     const unsubProducts = subscribeToCollection<Product>('products', (cloudProducts) => {
-      if (isMounted && Array.isArray(cloudProducts) && cloudProducts.length > 0) {
+      if (isMounted && Array.isArray(cloudProducts)) {
         setProducts(cloudProducts);
+        try {
+          localStorage.setItem(`${STORAGE_KEY}_products`, JSON.stringify(cloudProducts));
+        } catch (e) {}
       }
     });
 
     // Listen to Sales in real-time
     const unsubSales = subscribeToCollection<Sale>('sales', (cloudSales) => {
-      if (isMounted && Array.isArray(cloudSales) && cloudSales.length > 0) {
+      if (isMounted && Array.isArray(cloudSales)) {
         const sorted = [...cloudSales].sort((a, b) => {
           const timeA = new Date(a.createdAt || a.date).getTime() || 0;
           const timeB = new Date(b.createdAt || b.date).getTime() || 0;
           return timeB - timeA;
         });
         setSales(sorted);
+        try {
+          localStorage.setItem(`${STORAGE_KEY}_sales`, JSON.stringify(sorted));
+        } catch (e) {}
       }
     });
 
     // Listen to Purchases in real-time
     const unsubPurchases = subscribeToCollection<Purchase>('purchases', (cloudPurchases) => {
-      if (isMounted && Array.isArray(cloudPurchases) && cloudPurchases.length > 0) {
+      if (isMounted && Array.isArray(cloudPurchases)) {
         const sorted = [...cloudPurchases].sort((a, b) => {
           const timeA = new Date(a.createdAt || a.date).getTime() || 0;
           const timeB = new Date(b.createdAt || b.date).getTime() || 0;
           return timeB - timeA;
         });
         setPurchases(sorted);
+        try {
+          localStorage.setItem(`${STORAGE_KEY}_purchases`, JSON.stringify(sorted));
+        } catch (e) {}
       }
     });
 
     // Listen to Customers in real-time
     const unsubCustomers = subscribeToCollection<Customer>('customers', (cloudCustomers) => {
-      if (isMounted && Array.isArray(cloudCustomers) && cloudCustomers.length > 0) {
+      if (isMounted && Array.isArray(cloudCustomers)) {
         setCustomers(cloudCustomers);
+        try {
+          localStorage.setItem(`${STORAGE_KEY}_customers`, JSON.stringify(cloudCustomers));
+        } catch (e) {}
       }
     });
 
     // Listen to Suppliers in real-time
     const unsubSuppliers = subscribeToCollection<Supplier>('suppliers', (cloudSuppliers) => {
-      if (isMounted && Array.isArray(cloudSuppliers) && cloudSuppliers.length > 0) {
+      if (isMounted && Array.isArray(cloudSuppliers)) {
         setSuppliers(cloudSuppliers);
+        try {
+          localStorage.setItem(`${STORAGE_KEY}_suppliers`, JSON.stringify(cloudSuppliers));
+        } catch (e) {}
       }
     });
 
     // Listen to Accounts in real-time
     const unsubAccounts = subscribeToCollection<Account>('accounts', (cloudAccounts) => {
-      if (isMounted && Array.isArray(cloudAccounts) && cloudAccounts.length > 0) {
-        setAccounts(cloudAccounts);
+      if (isMounted && Array.isArray(cloudAccounts)) {
+        const isClean = localStorage.getItem('RM_CLEAN_SLATE_MODE') === 'true';
+        let targetAccounts = cloudAccounts;
+        if (isClean) {
+          // If in clean slate mode, purge any lingering dummy bank accounts from cloud
+          const demoIds = ['acc-2', 'acc-3', 'acc-4', 'acc-5'];
+          if (cloudAccounts.some((a) => demoIds.includes(a.id))) {
+            demoIds.forEach((id) => deleteFirestoreDoc('accounts', id).catch(() => {}));
+            targetAccounts = cloudAccounts.filter((a) => !demoIds.includes(a.id));
+          }
+        }
+        if (targetAccounts.length === 0) {
+          targetAccounts = [
+            {
+              id: 'acc-1',
+              name: 'দোকান ক্যাশ কাউন্টার (Cash Counter)',
+              type: 'cash',
+              balance: 0,
+              isDefault: true,
+            },
+          ];
+          setFirestoreDoc('accounts', 'acc-1', targetAccounts[0]).catch(() => {});
+        }
+        setAccounts(targetAccounts);
+        try {
+          localStorage.setItem(`${STORAGE_KEY}_accounts`, JSON.stringify(targetAccounts));
+        } catch (e) {}
       }
     });
 
     // Listen to Expenses in real-time
     const unsubExpenses = subscribeToCollection<Expense>('expenses', (cloudExpenses) => {
-      if (isMounted && Array.isArray(cloudExpenses) && cloudExpenses.length > 0) {
+      if (isMounted && Array.isArray(cloudExpenses)) {
         setExpenses(cloudExpenses);
+        try {
+          localStorage.setItem(`${STORAGE_KEY}_expenses`, JSON.stringify(cloudExpenses));
+        } catch (e) {}
       }
     });
 
     // Listen to Loan Parties in real-time
     const unsubLoanParties = subscribeToCollection<LoanParty>('loanParties', (cloudLoanParties) => {
-      if (isMounted && Array.isArray(cloudLoanParties) && cloudLoanParties.length > 0) {
+      if (isMounted && Array.isArray(cloudLoanParties)) {
         setLoanParties(cloudLoanParties);
+        try {
+          localStorage.setItem(`${STORAGE_KEY}_loan_parties`, JSON.stringify(cloudLoanParties));
+        } catch (e) {}
       }
     });
 
     // Listen to Loan Records in real-time
     const unsubLoanRecords = subscribeToCollection<LoanRecord>('loanRecords', (cloudLoanRecords) => {
-      if (isMounted && Array.isArray(cloudLoanRecords) && cloudLoanRecords.length > 0) {
+      if (isMounted && Array.isArray(cloudLoanRecords)) {
         setLoanRecords(cloudLoanRecords);
+        try {
+          localStorage.setItem(`${STORAGE_KEY}_loan_records`, JSON.stringify(cloudLoanRecords));
+        } catch (e) {}
       }
     });
 
     // Listen to Payment Records in real-time
     const unsubPayments = subscribeToCollection<PaymentRecord>('paymentRecords', (cloudPayments) => {
-      if (isMounted && Array.isArray(cloudPayments) && cloudPayments.length > 0) {
+      if (isMounted && Array.isArray(cloudPayments)) {
         setPaymentRecords(cloudPayments);
+        try {
+          localStorage.setItem(`${STORAGE_KEY}_payments`, JSON.stringify(cloudPayments));
+        } catch (e) {}
       }
     });
 
@@ -715,6 +845,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const unsubUsers = subscribeToCollection<User>('users', (cloudUsers) => {
       if (isMounted && Array.isArray(cloudUsers) && cloudUsers.length > 0) {
         setUsers(cloudUsers);
+        try {
+          localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(cloudUsers));
+        } catch (e) {}
         if (currentUser) {
           const matched = cloudUsers.find((u) => u.id === currentUser.id);
           if (matched) {
@@ -728,6 +861,57 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const unsubProfile = subscribeToDoc<BusinessProfile>('settings', 'businessProfile', (cloudProfile) => {
       if (isMounted && cloudProfile && cloudProfile.businessName) {
         setBusinessProfile((prev) => ({ ...prev, ...cloudProfile }));
+        try {
+          localStorage.setItem(`${STORAGE_KEY}_profile`, JSON.stringify(cloudProfile));
+        } catch (e) {}
+      }
+    });
+
+    // Listen to System State for cross-device & cross-domain synchronized clean resets
+    const unsubSystemState = subscribeToDoc<{ lastResetAt?: string }>('settings', 'systemState', (cloudState) => {
+      if (isMounted && cloudState && cloudState.lastResetAt) {
+        const localReset = localStorage.getItem('RM_LAST_RESET_TIMESTAMP') || '';
+        if (cloudState.lastResetAt > localReset) {
+          localStorage.setItem('RM_LAST_RESET_TIMESTAMP', cloudState.lastResetAt);
+          localStorage.setItem('RM_CLEAN_SLATE_MODE', 'true');
+          setProducts([]);
+          setSales([]);
+          setPurchases([]);
+          setCustomers([]);
+          setSuppliers([]);
+          setExpenses([]);
+          setIncomes([]);
+          setPaymentRecords([]);
+          setLoanParties([]);
+          setLoanRecords([]);
+          setStockAdjustments([]);
+          setSalesReturns([]);
+          setDailyClosings([]);
+          const freshCashAcc: Account[] = [
+            {
+              id: 'acc-1',
+              name: 'দোকান ক্যাশ কাউন্টার (Cash Counter)',
+              type: 'cash',
+              balance: 0,
+              isDefault: true,
+            },
+          ];
+          setAccounts(freshCashAcc);
+          try {
+            localStorage.setItem(`${STORAGE_KEY}_products`, JSON.stringify([]));
+            localStorage.setItem(`${STORAGE_KEY}_sales`, JSON.stringify([]));
+            localStorage.setItem(`${STORAGE_KEY}_purchases`, JSON.stringify([]));
+            localStorage.setItem(`${STORAGE_KEY}_customers`, JSON.stringify([]));
+            localStorage.setItem(`${STORAGE_KEY}_suppliers`, JSON.stringify([]));
+            localStorage.setItem(`${STORAGE_KEY}_expenses`, JSON.stringify([]));
+            localStorage.setItem(`${STORAGE_KEY}_incomes`, JSON.stringify([]));
+            localStorage.setItem(`${STORAGE_KEY}_payments`, JSON.stringify([]));
+            localStorage.setItem(`${STORAGE_KEY}_loan_parties`, JSON.stringify([]));
+            localStorage.setItem(`${STORAGE_KEY}_loan_records`, JSON.stringify([]));
+            localStorage.setItem(`${STORAGE_KEY}_stock_adj`, JSON.stringify([]));
+            localStorage.setItem(`${STORAGE_KEY}_accounts`, JSON.stringify(freshCashAcc));
+          } catch (e) {}
+        }
       }
     });
 
@@ -745,6 +929,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       unsubPayments();
       unsubUsers();
       unsubProfile();
+      unsubSystemState();
     };
   }, []);
 
@@ -791,15 +976,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  // Background auto-seeding to Firestore on first launch
+  // Background auto-seeding flag
   useEffect(() => {
-    const hasSynced = localStorage.getItem('RM_FIRESTORE_INITIAL_SYNCED');
-    if (!hasSynced) {
-      const timer = setTimeout(() => {
-        syncAllToFirestore();
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
+    localStorage.setItem('RM_FIRESTORE_INITIAL_SYNCED', 'true');
   }, []);
 
   // Persistence Effects
@@ -2764,30 +2943,64 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const resetToDefaultData = () => {
-    setBusinessProfile(initialBusinessProfile);
-    setUsers(initialUsers);
-    setCurrentUser(initialUsers[0]);
-    setCategories(initialCategories);
-    setBrands(initialBrands);
-    setCountries(initialCountries);
-    setExpenseCategories(initialExpenseCategories);
-    setProducts(initialProducts);
-    setCustomers(initialCustomers);
-    setSuppliers(initialSuppliers);
-    setAccounts(initialAccounts);
-    setSales(initialSales);
-    setPurchases(initialPurchases);
-    setPaymentRecords([]);
-    setExpenses(initialExpenses);
-    setIncomes([]);
-    setStockAdjustments([]);
-    setAuditLogs(initialAuditLogs);
-    setLoanParties(initialLoanParties);
-    setLoanRecords(initialLoanRecords);
-    localStorage.clear();
+    resetToCleanFreshData();
   };
 
   const resetToCleanFreshData = () => {
+    // 0. Automatically create a restorable snapshot archive before wiping if there was active data
+    if (sales.length > 0 || purchases.length > 0 || products.length > 0 || customers.length > 0 || expenses.length > 0) {
+      const archiveItem: ResetArchive = {
+        id: 'archive-' + Date.now(),
+        timestamp: new Date().toISOString(),
+        resetByUserId: currentUser?.id || 'system',
+        resetByUserName: currentUser?.name || 'System Administrator',
+        reason: 'Operational clean slate reset',
+        summary: {
+          salesCount: sales.length,
+          purchasesCount: purchases.length,
+          productsCount: products.length,
+          customersCount: customers.length,
+          suppliersCount: suppliers.length,
+          loanPartiesCount: loanParties.length,
+          loanRecordsCount: loanRecords.length,
+          expensesCount: expenses.length,
+          incomesCount: incomes.length,
+          paymentRecordsCount: paymentRecords.length,
+          totalSalesVolume: sales.reduce((sum, s) => sum + s.grandTotal, 0),
+          totalDueVolume: customers.reduce((sum, c) => sum + (c.currentDue || 0), 0),
+        },
+        snapshot: {
+          sales,
+          purchases,
+          products,
+          customers,
+          suppliers,
+          accounts,
+          expenses,
+          incomes,
+          paymentRecords,
+          loanParties,
+          loanRecords,
+          stockAdjustments,
+        },
+      };
+      setResetArchives((prev) => {
+        const next = [archiveItem, ...prev].slice(0, 10);
+        localStorage.setItem('RM_RESET_ARCHIVES', JSON.stringify(next));
+        return next;
+      });
+    }
+
+    // 1. Preserve current organization profile and all user accounts!
+    // The user's account and users list remain 100% intact.
+    const preservedProfile = businessProfile;
+    const preservedUsers = users;
+    const preservedCurrentUser = currentUser || users[0] || initialUsers[0];
+    const preservedLang = language;
+    const preservedTheme = theme;
+
+    // 2. Reset ALL operational, practice, test transaction entities to empty arrays (0)
+    setProducts([]);
     setSales([]);
     setPurchases([]);
     setPaymentRecords([]);
@@ -2798,35 +3011,107 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSuppliers([]);
     setLoanParties([]);
     setLoanRecords([]);
-    setAccounts([
+    setSalesReturns([]);
+    setDailyClosings([]);
+
+    // 3. Reset Cash & Bank: ONLY 1 default Cash Counter at 0 balance!
+    // All dummy demo banks (Islami Bank, City Bank, bKash, Nagad) are completely removed.
+    const freshZeroAccounts: Account[] = [
       {
         id: 'acc-1',
-        name: 'দোকান ক্যাশ / Cash Counter',
+        name: 'দোকান ক্যাশ কাউন্টার (Cash Counter)',
         type: 'cash',
         balance: 0,
         isDefault: true,
       },
-      {
-        id: 'acc-2',
-        name: 'বিকাশ মার্চেন্ট / bKash',
-        type: 'mfs',
-        accountNumber: '01711000000',
-        balance: 0,
-        isDefault: false,
-      },
-    ]);
-    setAuditLogs([
-      {
-        id: 'audit-' + Date.now(),
-        timestamp: new Date().toISOString(),
-        userId: currentUser?.id || 'system',
-        userName: currentUser?.name || 'System Administrator',
-        action: 'CLEAN_SLATE_RESET',
-        module: 'SYSTEM',
-        details: 'System reset to clean fresh production state. Ready for live transactions.',
-      },
-    ]);
-    localStorage.clear();
+    ];
+    setAccounts(freshZeroAccounts);
+
+    const freshAuditLog: AuditLog = {
+      id: 'audit-' + Date.now(),
+      timestamp: new Date().toISOString(),
+      userId: preservedCurrentUser?.id || 'system',
+      userName: preservedCurrentUser?.name || 'System Administrator',
+      action: 'CLEAN_SLATE_RESET',
+      module: 'SYSTEM',
+      details: 'অপারেশনাল ডাটা রিসেট সম্পন্ন। প্রতিষ্ঠান তথ্য এবং সকল ইউজার অ্যাকাউন্ট অক্ষুণ্ণ রাখা হয়েছে।',
+    };
+    setAuditLogs([freshAuditLog]);
+
+    // 4. Persist clean slate flag in localStorage
+    localStorage.setItem('RM_CLEAN_SLATE_MODE', 'true');
+    localStorage.setItem(`${STORAGE_KEY}_profile`, JSON.stringify(preservedProfile));
+    localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(preservedUsers));
+    localStorage.setItem(`${STORAGE_KEY}_current_user_id`, preservedCurrentUser.id);
+    localStorage.setItem('RM_LANG', preservedLang);
+    localStorage.setItem('RM_THEME', preservedTheme);
+
+    // Persist empty operational arrays (Scratch / 0)
+    localStorage.setItem(`${STORAGE_KEY}_products`, JSON.stringify([]));
+    localStorage.setItem(`${STORAGE_KEY}_sales`, JSON.stringify([]));
+    localStorage.setItem(`${STORAGE_KEY}_purchases`, JSON.stringify([]));
+    localStorage.setItem(`${STORAGE_KEY}_customers`, JSON.stringify([]));
+    localStorage.setItem(`${STORAGE_KEY}_suppliers`, JSON.stringify([]));
+    localStorage.setItem(`${STORAGE_KEY}_expenses`, JSON.stringify([]));
+    localStorage.setItem(`${STORAGE_KEY}_incomes`, JSON.stringify([]));
+    localStorage.setItem(`${STORAGE_KEY}_payments`, JSON.stringify([]));
+    localStorage.setItem(`${STORAGE_KEY}_loan_parties`, JSON.stringify([]));
+    localStorage.setItem(`${STORAGE_KEY}_loan_records`, JSON.stringify([]));
+    localStorage.setItem(`${STORAGE_KEY}_stock_adj`, JSON.stringify([]));
+    localStorage.setItem(`${STORAGE_KEY}_accounts`, JSON.stringify(freshZeroAccounts));
+    localStorage.setItem(`${STORAGE_KEY}_audit`, JSON.stringify([freshAuditLog]));
+
+    // 5. Clean up Firestore: clear operational collections and purge dummy demo accounts
+    const nowIso = new Date().toISOString();
+    localStorage.setItem('RM_LAST_RESET_TIMESTAMP', nowIso);
+    setFirestoreDoc('settings', 'systemState', { lastResetAt: nowIso }).catch(() => {});
+
+    clearFirestoreCollection('products').catch(() => {});
+    clearFirestoreCollection('sales').catch(() => {});
+    clearFirestoreCollection('purchases').catch(() => {});
+    clearFirestoreCollection('customers').catch(() => {});
+    clearFirestoreCollection('suppliers').catch(() => {});
+    clearFirestoreCollection('expenses').catch(() => {});
+    clearFirestoreCollection('incomes').catch(() => {});
+    clearFirestoreCollection('paymentRecords').catch(() => {});
+    clearFirestoreCollection('loanParties').catch(() => {});
+    clearFirestoreCollection('loanRecords').catch(() => {});
+    clearFirestoreCollection('stockAdjustments').catch(() => {});
+
+    // Delete dummy demo bank accounts from Firestore
+    deleteFirestoreDoc('accounts', 'acc-2').catch(() => {});
+    deleteFirestoreDoc('accounts', 'acc-3').catch(() => {});
+    deleteFirestoreDoc('accounts', 'acc-4').catch(() => {});
+    deleteFirestoreDoc('accounts', 'acc-5').catch(() => {});
+
+    // Save only the single clean 0-balance cash counter and preserved settings
+    setFirestoreDoc('accounts', 'acc-1', freshZeroAccounts[0]).catch(() => {});
+    setFirestoreDoc('settings', 'businessProfile', preservedProfile).catch(() => {});
+    preservedUsers.forEach((u) => {
+      setFirestoreDoc('users', u.id, u).catch(() => {});
+    });
+  };
+
+  const restoreFromArchive = async (archiveId: string): Promise<boolean> => {
+    const archive = resetArchives.find((a) => a.id === archiveId);
+    if (!archive) return false;
+    try {
+      if (archive.snapshot) {
+        importBackup(JSON.stringify(archive.snapshot));
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
+  const deleteArchive = (archiveId: string) => {
+    setResetArchives((prev) => {
+      const next = prev.filter((a) => a.id !== archiveId);
+      localStorage.setItem('RM_RESET_ARCHIVES', JSON.stringify(next));
+      return next;
+    });
   };
 
   const updateUser = (updatedUser: User) => {
@@ -3112,6 +3397,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         resetToDefaultData,
         resetToSeedData: resetToDefaultData,
         resetToCleanFreshData,
+        resetArchives,
+        restoreFromArchive,
+        deleteArchive,
 
         isCloudSyncing,
         cloudSyncStatus,

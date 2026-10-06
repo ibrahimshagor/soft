@@ -24,6 +24,36 @@ export const firebaseConfig = {
   appId: '1:630774495377:web:19adab898070907f522730',
 };
 
+// Complete copy-pasteable Firestore Security Rules for RM Automobiles
+export const firestoreRulesContent = `rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow read & write for all authenticated requests (including anonymous auth)
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Explicit collection access
+    match /products/{id} { allow read, write: if request.auth != null; }
+    match /customers/{id} { allow read, write: if request.auth != null; }
+    match /suppliers/{id} { allow read, write: if request.auth != null; }
+    match /accounts/{id} { allow read, write: if request.auth != null; }
+    match /sales/{id} { allow read, write: if request.auth != null; }
+    match /purchases/{id} { allow read, write: if request.auth != null; }
+    match /expenses/{id} { allow read, write: if request.auth != null; }
+    match /incomes/{id} { allow read, write: if request.auth != null; }
+    match /stockAdjustments/{id} { allow read, write: if request.auth != null; }
+    match /loanParties/{id} { allow read, write: if request.auth != null; }
+    match /loanRecords/{id} { allow read, write: if request.auth != null; }
+    match /paymentRecords/{id} { allow read, write: if request.auth != null; }
+    match /dailyClosings/{id} { allow read, write: if request.auth != null; }
+    match /auditLogs/{id} { allow read, write: if request.auth != null; }
+    match /users/{id} { allow read, write: if request.auth != null; }
+    match /settings/{id} { allow read, write: if request.auth != null; }
+    match /_connection_test/{id} { allow read, write: if true; }
+  }
+}`;
+
 // Initialize Firebase App
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app);
@@ -33,6 +63,7 @@ export const auth = getAuth(app);
 let currentFirebaseUser: FirebaseUser | null = null;
 let authPromise: Promise<FirebaseUser | null> | null = null;
 const authListeners: Array<(user: FirebaseUser | null, error?: string) => void> = [];
+const errorListeners: Array<(errorMsg: string) => void> = [];
 
 export function subscribeToAuthStatus(callback: (user: FirebaseUser | null, error?: string) => void): () => void {
   authListeners.push(callback);
@@ -41,6 +72,22 @@ export function subscribeToAuthStatus(callback: (user: FirebaseUser | null, erro
     const idx = authListeners.indexOf(callback);
     if (idx !== -1) authListeners.splice(idx, 1);
   };
+}
+
+export function subscribeToFirebaseErrors(callback: (errorMsg: string) => void): () => void {
+  errorListeners.push(callback);
+  return () => {
+    const idx = errorListeners.indexOf(callback);
+    if (idx !== -1) errorListeners.splice(idx, 1);
+  };
+}
+
+function broadcastError(msg: string) {
+  errorListeners.forEach((cb) => {
+    try {
+      cb(msg);
+    } catch (e) {}
+  });
 }
 
 // Automatically ensure anonymous sign-in so Firestore 'request.auth != null' rules are satisfied
@@ -93,21 +140,22 @@ export function sanitizeForFirestore<T>(data: T): T {
 // Write document to collection
 export async function setFirestoreDoc(collectionName: string, docId: string, data: any): Promise<void> {
   try {
-    // If not yet authenticated, trigger ensureFirebaseAuth in background
-    if (!currentFirebaseUser) {
-      ensureFirebaseAuth().catch(() => {});
-    }
+    await ensureFirebaseAuth();
     const cleanData = sanitizeForFirestore(data);
     const docRef = doc(db, collectionName, String(docId));
     await setDoc(docRef, cleanData, { merge: true });
   } catch (err: any) {
     console.warn(`[Firebase] Error saving to ${collectionName}/${docId}:`, err);
+    if (err.code === 'permission-denied' || String(err.message).includes('permission')) {
+      broadcastError('ফায়ারবেসে ডাটা সংরক্ষণের অনুমতি নেই (Permission Denied)। অনুগ্রহ করে Settings -> Firebase থেকে রুলস কপি করে Firebase Console-এ আপডেট ও Publish করুন।');
+    }
   }
 }
 
 // Delete document from collection
 export async function deleteFirestoreDoc(collectionName: string, docId: string): Promise<void> {
   try {
+    await ensureFirebaseAuth();
     const docRef = doc(db, collectionName, String(docId));
     await deleteDoc(docRef);
   } catch (err: any) {
@@ -115,63 +163,117 @@ export async function deleteFirestoreDoc(collectionName: string, docId: string):
   }
 }
 
-// Real-time listener for a collection
+// Clear all documents in a collection (used for clean slate reset)
+export async function clearFirestoreCollection(collectionName: string): Promise<void> {
+  try {
+    await ensureFirebaseAuth();
+    const colRef = collection(db, collectionName);
+    const snap = await getDocs(colRef);
+    if (!snap.empty) {
+      const deletes = snap.docs.map((d) => deleteDoc(d.ref));
+      await Promise.allSettled(deletes);
+    }
+  } catch (err: any) {
+    console.warn(`[Firebase] Error clearing collection ${collectionName}:`, err);
+  }
+}
+
+// Real-time listener for a collection with auto-auth and robust reconnection
 export function subscribeToCollection<T extends { id: string }>(
   collectionName: string,
   onData: (data: T[]) => void,
   onError?: (err: Error) => void
 ): () => void {
-  try {
-    const colRef = collection(db, collectionName);
-    return onSnapshot(
-      colRef,
-      (snapshot) => {
-        if (!snapshot.empty) {
+  let unsubSnapshot: (() => void) | null = null;
+  let isCancelled = false;
+
+  const initListener = async () => {
+    try {
+      await ensureFirebaseAuth();
+      if (isCancelled) return;
+      const colRef = collection(db, collectionName);
+      unsubSnapshot = onSnapshot(
+        colRef,
+        (snapshot) => {
           const items: T[] = [];
-          snapshot.forEach((docSnap) => {
-            items.push({ id: docSnap.id, ...(docSnap.data() as any) });
-          });
+          if (!snapshot.empty) {
+            snapshot.forEach((docSnap) => {
+              items.push({ id: docSnap.id, ...(docSnap.data() as any) });
+            });
+          }
           onData(items);
+        },
+        async (error) => {
+          console.warn(`[Firebase] Snapshot error for ${collectionName}:`, error.message);
+          if (error.code === 'permission-denied') {
+            broadcastError(`ফায়ারবেস রিড পারমিশন এরর (${collectionName})! Firebase Console-এ Rules আপডেট করুন।`);
+          }
+          onError?.(error);
+          if (!isCancelled) {
+            setTimeout(() => {
+              if (!isCancelled) initListener();
+            }, 3000);
+          }
         }
-      },
-      (error) => {
-        console.warn(`[Firebase] Snapshot error for ${collectionName}:`, error.message);
-        onError?.(error);
-      }
-    );
-  } catch (err: any) {
-    console.warn(`[Firebase] Listener setup error for ${collectionName}:`, err);
-    onError?.(err);
-    return () => {};
-  }
+      );
+    } catch (err: any) {
+      console.warn(`[Firebase] Listener setup error for ${collectionName}:`, err);
+      onError?.(err);
+    }
+  };
+
+  initListener();
+
+  return () => {
+    isCancelled = true;
+    if (unsubSnapshot) unsubSnapshot();
+  };
 }
 
-// Real-time listener for a single document
+// Real-time listener for a single document with auto-auth
 export function subscribeToDoc<T>(
   collectionName: string,
   docId: string,
   onData: (data: T) => void,
   onError?: (err: Error) => void
 ): () => void {
-  try {
-    const docRef = doc(db, collectionName, String(docId));
-    return onSnapshot(
-      docRef,
-      (docSnap) => {
-        if (docSnap.exists()) {
-          onData(docSnap.data() as T);
+  let unsubSnapshot: (() => void) | null = null;
+  let isCancelled = false;
+
+  const initListener = async () => {
+    try {
+      await ensureFirebaseAuth();
+      if (isCancelled) return;
+      const docRef = doc(db, collectionName, String(docId));
+      unsubSnapshot = onSnapshot(
+        docRef,
+        (docSnap) => {
+          if (docSnap.exists()) {
+            onData(docSnap.data() as T);
+          }
+        },
+        async (error) => {
+          console.warn(`[Firebase] Doc snapshot error for ${collectionName}/${docId}:`, error.message);
+          onError?.(error);
+          if (!isCancelled) {
+            setTimeout(() => {
+              if (!isCancelled) initListener();
+            }, 3000);
+          }
         }
-      },
-      (error) => {
-        console.warn(`[Firebase] Doc snapshot error for ${collectionName}/${docId}:`, error.message);
-        onError?.(error);
-      }
-    );
-  } catch (err: any) {
-    console.warn(`[Firebase] Listener setup error for ${collectionName}/${docId}:`, err);
-    onError?.(err);
-    return () => {};
-  }
+      );
+    } catch (err: any) {
+      console.warn(`[Firebase] Listener setup error for ${collectionName}/${docId}:`, err);
+      onError?.(err);
+    }
+  };
+
+  initListener();
+
+  return () => {
+    isCancelled = true;
+    if (unsubSnapshot) unsubSnapshot();
+  };
 }
 
 // Test Firestore Connection and permissions
@@ -187,12 +289,12 @@ export async function testFirestoreConnection(): Promise<{
     const now = new Date().toISOString();
     await setDoc(testDocRef, {
       lastPing: now,
-      origin: window.location.origin,
+      origin: typeof window !== 'undefined' ? window.location.origin : 'server',
       authUser: user ? user.uid : 'anonymous_none',
     });
     return {
       success: true,
-      message: 'ফায়ারবেস ডাটাবেজের সাথে সফলভাবে সংযোগ স্থাপিত হয়েছে এবং রিয়েলটাইম সিঙ্কিং সক্রিয়!',
+      message: 'ফায়ারবেস ডাটাবেজের সাথে সফলভাবে সংযোগ স্থাপিত হয়েছে এবং রিয়েলটাইম রিড/রাইট সক্রিয়!',
       isAuth: !!user,
       userUid: user?.uid,
     };
@@ -201,7 +303,7 @@ export async function testFirestoreConnection(): Promise<{
     let msg = err.message || 'Unknown error';
     if (err.code === 'permission-denied' || msg.includes('permission')) {
       msg =
-        'অনুমতি পাওয়া যায়নি (Permission Denied)। অনুগ্রহ করে Firebase Console -> Firestore Database -> Rules এ গিয়ে rules চেক করুন অথবা Authentication -> Sign-in method এ Anonymous এনাবল করুন।';
+        'অনুমতি পাওয়া যায়নি (Permission Denied)। অনুগ্রহ করে Settings -> Firebase কার্ড থেকে Rules কপি করে Firebase Console -> Firestore Database -> Rules-এ পেস্ট করে Publish করুন এবং Authentication -> Sign-in method এ Anonymous এনাবল আছে কিনা নিশ্চিত করুন।';
     }
     return {
       success: false,
@@ -212,7 +314,7 @@ export async function testFirestoreConnection(): Promise<{
   }
 }
 
-// Bulk sync all initial and local state to Firestore
+// Bulk sync all state to Firestore
 export async function syncAllToFirestore(data: {
   products: any[];
   customers: any[];

@@ -25,11 +25,20 @@ import {
   CreditCard,
   Layers,
   Cloud,
+  Copy,
+  Check,
+  Code2,
+  History,
+  RotateCcw,
+  Globe,
+  Search,
+  Filter,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { BusinessProfile, User } from '../../types';
 import { compressAndResizeImage } from '../../utils/imageCompressor';
 import { PaymentMethodsManager } from './PaymentMethodsManager';
+import { firestoreRulesContent } from '../../services/firebase';
 
 export const SettingsView: React.FC = () => {
   const {
@@ -43,6 +52,10 @@ export const SettingsView: React.FC = () => {
     deleteUser,
     resetToSeedData,
     resetToCleanFreshData,
+    resetArchives,
+    restoreFromArchive,
+    deleteArchive,
+    auditLogs,
     exportFullBackup,
     importBackup,
     isCloudSyncing,
@@ -56,7 +69,12 @@ export const SettingsView: React.FC = () => {
   const [formData, setFormData] = useState<BusinessProfile>(businessProfile);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [cloudSyncMsg, setCloudSyncMsg] = useState('');
-  const [settingsTab, setSettingsTab] = useState<'profile' | 'payment_methods'>('profile');
+  const [settingsTab, setSettingsTab] = useState<'profile' | 'payment_methods' | 'audit_recovery'>('profile');
+  const [auditFilter, setAuditFilter] = useState<string>('all');
+  const [auditSearch, setAuditSearch] = useState<string>('');
+  const [restoringArchiveId, setRestoringArchiveId] = useState<string | null>(null);
+  const [restoreSuccessMsg, setRestoreSuccessMsg] = useState<string>('');
+  const [copiedDomain, setCopiedDomain] = useState<string>('');
 
   // User Management state
   const [showAddUserModal, setShowAddUserModal] = useState(false);
@@ -83,7 +101,19 @@ export const SettingsView: React.FC = () => {
 
   // Reset confirmation state
   const [confirmCleanReset, setConfirmCleanReset] = useState(false);
-  const [confirmDemoReset, setConfirmDemoReset] = useState(false);
+  const [resetSuccessMessage, setResetSuccessMessage] = useState(false);
+  const [showRulesModal, setShowRulesModal] = useState(false);
+  const [copiedRules, setCopiedRules] = useState(false);
+
+  const handleCopyRules = async () => {
+    try {
+      await navigator.clipboard.writeText(firestoreRulesContent);
+      setCopiedRules(true);
+      setTimeout(() => setCopiedRules(false), 3000);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handleChange = (field: keyof BusinessProfile, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -353,10 +383,343 @@ export const SettingsView: React.FC = () => {
           <CreditCard className="w-4 h-4" />
           <span>{language === 'bn' ? 'পেমেন্ট মেথড ও একাউন্ট সংযোগ' : 'Payment Methods & Account Mapping'}</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setSettingsTab('audit_recovery')}
+          className={`pb-3 px-4 border-b-2 transition-all flex items-center gap-1.5 ${
+            settingsTab === 'audit_recovery'
+              ? 'border-amber-500 text-amber-600 dark:text-amber-400'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <History className="w-4 h-4" />
+          <span>{language === 'bn' ? 'অডিট লগ ও ডাটা রিকভারি হিস্ট্রি' : 'Audit Log & Data Recovery'}</span>
+        </button>
       </div>
 
       {settingsTab === 'payment_methods' ? (
         <PaymentMethodsManager />
+      ) : settingsTab === 'audit_recovery' ? (
+        <div className="space-y-6">
+          {restoreSuccessMsg && (
+            <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-bold flex items-center justify-between shadow-xs">
+              <span className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                <span>{restoreSuccessMsg}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setRestoreSuccessMsg('')}
+                className="text-emerald-700 hover:text-emerald-900"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* 1. Recovery Archives & Trash Snapshots */}
+          <div className="bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/70 p-5 sm:p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  <RotateCcw className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                    {language === 'bn' ? 'ডাটা রিকভারি ও ট্র্যাশ স্ন্যাপশট (Restore Backups)' : 'Data Recovery & Snapshot Archives'}
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {language === 'bn'
+                      ? 'পূর্বে মুছে ফেলা বা রিসেট করা ডাটার ব্যাকআপ স্ন্যাপশট। ১ ক্লিকেই পূর্বাবস্থায় ফিরিয়ে আনা যাবে।'
+                      : 'Snapshots captured before resets. Restore any state with a single click.'}
+                  </p>
+                </div>
+              </div>
+
+              <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 self-start sm:self-auto">
+                {resetArchives.length} {language === 'bn' ? 'টি সংরক্ষিত স্ন্যাপশট' : 'Saved Snapshots'}
+              </span>
+            </div>
+
+            {resetArchives.length === 0 ? (
+              <div className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs border border-dashed border-slate-200 dark:border-slate-700 rounded-2xl">
+                <RotateCcw className="w-8 h-8 mx-auto mb-2 opacity-40 text-slate-400" />
+                <p className="font-semibold">{language === 'bn' ? 'কোনো আর্কাইভ স্ন্যাপশট নেই।' : 'No saved archive snapshots.'}</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  {language === 'bn' ? 'সিস্টেমে রিসেট চালানো হলে স্বয়ংক্রিয়ভাবে এখানে স্ন্যাপশট সংরক্ষিত হয়।' : 'Snapshots are automatically created whenever an operational reset is triggered.'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {resetArchives.map((archive) => (
+                  <div
+                    key={archive.id}
+                    className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-900/40 space-y-3 hover:border-amber-300 dark:hover:border-amber-700 transition-colors"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-xs text-slate-900 dark:text-white font-mono">
+                            {new Date(archive.timestamp).toLocaleString()}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                            {archive.reason || 'Clean Reset'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          {language === 'bn' ? 'অ্যাকশন গ্রহণকারী:' : 'Action performed by:'} <strong className="text-slate-700 dark:text-slate-300">{archive.resetByUserName}</strong>
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm(language === 'bn' ? 'আপনি কি নিশ্চিতভাবে এই স্ন্যাপশটটি রিস্টোর করে পূর্বের সমস্ত সেল ও পার্টসের তথ্য ফিরিয়ে আনতে চান?' : 'Are you sure you want to restore this snapshot? Current data will be replaced.')) {
+                              setRestoringArchiveId(archive.id);
+                              restoreFromArchive(archive.id).then((success) => {
+                                setRestoringArchiveId(null);
+                                if (success) {
+                                  setRestoreSuccessMsg(language === 'bn' ? 'স্ন্যাপশট সফলভাবে রিস্টোর হয়েছে! পূর্বের সকল ডাটা ফিরিয়ে আনা হয়েছে।' : 'Snapshot restored successfully! All previous records recovered.');
+                                  setTimeout(() => setRestoreSuccessMsg(''), 5000);
+                                }
+                              });
+                            }
+                          }}
+                          disabled={restoringArchiveId === archive.id}
+                          className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all disabled:opacity-50"
+                        >
+                          <RotateCcw className={`w-3.5 h-3.5 ${restoringArchiveId === archive.id ? 'animate-spin' : ''}`} />
+                          <span>{language === 'bn' ? 'এই ডাটা ফিরিয়ে আনুন (Restore)' : 'Restore Snapshot'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm(language === 'bn' ? 'এই স্ন্যাপশটটি চিরতরে মুছে ফেলতে চান?' : 'Permanently delete this snapshot?')) {
+                              deleteArchive(archive.id);
+                            }
+                          }}
+                          className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                          title="Delete snapshot"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Snapshot data summary pills */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 pt-2 border-t border-slate-200/80 dark:border-slate-800 text-[11px]">
+                      <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                        <span className="text-slate-400 block text-[10px]">{language === 'bn' ? 'বিক্রয় (Sales)' : 'Sales'}</span>
+                        <strong className="text-slate-800 dark:text-slate-200">{archive.summary.salesCount} টি (৳{archive.summary.totalSalesVolume.toLocaleString()})</strong>
+                      </div>
+                      <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                        <span className="text-slate-400 block text-[10px]">{language === 'bn' ? 'পার্টস পণ্য' : 'Products'}</span>
+                        <strong className="text-slate-800 dark:text-slate-200">{archive.summary.productsCount} টি</strong>
+                      </div>
+                      <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                        <span className="text-slate-400 block text-[10px]">{language === 'bn' ? 'কাস্টমার বকেয়া' : 'Customer Dues'}</span>
+                        <strong className="text-rose-600 dark:text-rose-400">৳{archive.summary.totalDueVolume.toLocaleString()}</strong>
+                      </div>
+                      <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                        <span className="text-slate-400 block text-[10px]">{language === 'bn' ? 'পারচেজ' : 'Purchases'}</span>
+                        <strong className="text-slate-800 dark:text-slate-200">{archive.summary.purchasesCount} টি</strong>
+                      </div>
+                      <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                        <span className="text-slate-400 block text-[10px]">{language === 'bn' ? 'খরচ রেকর্ড' : 'Expenses'}</span>
+                        <strong className="text-slate-800 dark:text-slate-200">{archive.summary.expensesCount} টি</strong>
+                      </div>
+                      <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                        <span className="text-slate-400 block text-[10px]">{language === 'bn' ? 'লোন রেকর্ড' : 'Loans'}</span>
+                        <strong className="text-slate-800 dark:text-slate-200">{archive.summary.loanRecordsCount} টি</strong>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 2. Authorized Domains for Firebase Authentication & Real-time Sync */}
+          <div className="bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/70 p-5 sm:p-6 shadow-xs space-y-3">
+            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-200 dark:border-slate-700">
+              <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                <Globe className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                  {language === 'bn' ? 'ফায়ারবেস অনুমোদিত ডোমেইন তালিকা (Authorized Domains)' : 'Firebase Authorized Domains'}
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {language === 'bn'
+                    ? 'ফায়ারবেসে অথেন্টিকেশন ও সিঙ্কিং সক্রিয় রাখতে নিচের ডোমেইনগুলো Firebase Console-এ যোগ করুন।'
+                    : 'Ensure these domains are added under Firebase Console -> Authentication -> Authorized Domains.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              {[
+                { domain: 'ais-dev-x7pbbetn233t66cqdami4k-1023580278903.asia-southeast1.run.app', label: 'Google AI Studio Dev Preview (বর্তমান লাইভ এডিটর)' },
+                { domain: 'ais-pre-x7pbbetn233t66cqdami4k-1023580278903.asia-southeast1.run.app', label: 'Google AI Studio Share/Preview (শেয়ার করা প্রিভিউ লিংক)' },
+                { domain: 'rmautomob.github.io', label: 'GitHub Pages / Main Production Domain (আপনার মূল ওয়েবসাইট লিংক)' },
+                { domain: 'localhost', label: 'Localhost (লোকাল ব্রাউজিং ও ডেভেলপমেন্ট)' },
+              ].map((item) => (
+                <div
+                  key={item.domain}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/70"
+                >
+                  <div className="space-y-0.5">
+                    <span className="font-mono font-bold text-xs text-slate-900 dark:text-white">{item.domain}</span>
+                    <span className="block text-[11px] text-slate-500 dark:text-slate-400">{item.label}</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(item.domain);
+                      setCopiedDomain(item.domain);
+                      setTimeout(() => setCopiedDomain(''), 2500);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all self-start sm:self-auto shrink-0 ${
+                      copiedDomain === item.domain
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
+                    }`}
+                  >
+                    {copiedDomain === item.domain ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>কপি হয়েছে!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>ডোমেইন কপি</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 pt-1 leading-relaxed">
+              👉 <strong>কোথায় পেস্ট করবেন:</strong> Firebase Console &rarr; <strong>Authentication</strong> &rarr; <strong>Settings</strong> &rarr; <strong>Authorized domains</strong> ট্যাবে গিয়ে <strong>Add domain</strong> এ ক্লিক করে ওপরের ডোমেইনগুলো যোগ করে দিন।
+            </p>
+          </div>
+
+          {/* 3. System Audit Trail Log */}
+          <div className="bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/70 p-5 sm:p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                  <History className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                    {language === 'bn' ? 'সিস্টেম অডিট লগ ট্রেইল (System Activity Trail)' : 'System Audit Trail'}
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {language === 'bn'
+                      ? 'প্রতিটি বিক্রয়, কালেকশন, পারচেজ, ডাটা এন্ট্রি ও সিস্টেম পরিবর্তনের নির্ভুল টাইমস্ট্যাম্প লগ।'
+                      : 'Immutable log of all transactions, user operations and profile updates.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Filters & Search */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={auditSearch}
+                    onChange={(e) => setAuditSearch(e.target.value)}
+                    placeholder={language === 'bn' ? 'লগ খুঁজুন...' : 'Search logs...'}
+                    className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white w-36 sm:w-44"
+                  />
+                </div>
+
+                <select
+                  value={auditFilter}
+                  onChange={(e) => setAuditFilter(e.target.value)}
+                  className="px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white font-medium"
+                >
+                  <option value="all">{language === 'bn' ? 'সকল মডিউল' : 'All Modules'}</option>
+                  <option value="Sales">Sales & Invoices</option>
+                  <option value="Purchases">Purchases</option>
+                  <option value="Customers">Customers & Dues</option>
+                  <option value="Suppliers">Suppliers</option>
+                  <option value="Accounts">Cash & Bank</option>
+                  <option value="SYSTEM">System & Resets</option>
+                  <option value="Settings">Settings</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Audit Log Table */}
+            <div className="overflow-x-auto max-h-[400px] overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 dark:bg-slate-900/80 text-[11px] font-bold text-slate-500 border-b border-slate-200 dark:border-slate-700 sticky top-0">
+                  <tr>
+                    <th className="py-2.5 px-3">সময় ও তারিখ</th>
+                    <th className="py-2.5 px-3">ইউজার</th>
+                    <th className="py-2.5 px-3">মডিউল</th>
+                    <th className="py-2.5 px-3">অ্যাকশন</th>
+                    <th className="py-2.5 px-3">বিস্তারিত বিবরণ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {auditLogs
+                    .filter((log) => {
+                      if (auditFilter !== 'all' && !log.module.toLowerCase().includes(auditFilter.toLowerCase())) {
+                        return false;
+                      }
+                      if (auditSearch.trim()) {
+                        const q = auditSearch.toLowerCase();
+                        return (
+                          log.action.toLowerCase().includes(q) ||
+                          log.details.toLowerCase().includes(q) ||
+                          log.userName.toLowerCase().includes(q)
+                        );
+                      }
+                      return true;
+                    })
+                    .map((log) => (
+                      <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 text-[11px]">
+                        <td className="py-2 px-3 font-mono text-slate-500 shrink-0">
+                          {new Date(log.timestamp).toLocaleString()}
+                        </td>
+                        <td className="py-2 px-3 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                          {log.userName}
+                        </td>
+                        <td className="py-2 px-3">
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                            {log.module}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 font-bold text-slate-700 dark:text-slate-300">
+                          {log.action}
+                        </td>
+                        <td className="py-2 px-3 text-slate-600 dark:text-slate-300 leading-relaxed">
+                          {log.details}
+                        </td>
+                      </tr>
+                    ))}
+                  {auditLogs.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-slate-400">
+                        {language === 'bn' ? 'কোনো অডিট লগ রেকর্ড পাওয়া যায়নি।' : 'No audit log records found.'}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Business Profile & Invoicing Details (7 cols) */}
@@ -886,6 +1249,18 @@ export const SettingsView: React.FC = () => {
                 </span>
               </button>
             </div>
+
+            {/* Rules Button & Quick Instructions */}
+            <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowRulesModal(true)}
+                className="w-full py-2 px-3 rounded-xl border border-amber-300 dark:border-amber-700/80 bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300 font-bold flex items-center justify-center gap-2 text-[11px] shadow-xs"
+              >
+                <Code2 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>ফায়ারবেস সিকিউরিটি রুলস কোড দেখুন ও কপি করুন (Rules Setup)</span>
+              </button>
+            </div>
           </div>
 
           {/* Database Backup & Reset Operations */}
@@ -919,27 +1294,24 @@ export const SettingsView: React.FC = () => {
 
             {/* Database Reset Action Buttons */}
             <div className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-2">
-              {/* Fresh Slate Reset */}
               <button
                 type="button"
                 onClick={() => setConfirmCleanReset(true)}
-                className="w-full py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/60 font-bold flex items-center justify-center gap-1.5 transition-colors"
+                className="w-full py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold flex items-center justify-center gap-2 transition-colors shadow-xs"
               >
-                <RefreshCw className="w-3.5 h-3.5 text-rose-600" />
-                <span>{language === 'bn' ? 'সম্পূর্ণ ফ্রেশ ডাটাবেজ তৈরি করুন (Fresh Start)' : 'Clean Slate Reset (Live Start)'}</span>
+                <RefreshCw className="w-4 h-4 text-white" />
+                <span>{language === 'bn' ? 'সিস্টেম অপারেশনাল ডাটা রিসেট (০ থেকে শুরু)' : 'Reset All Operational Data (Start Fresh from 0)'}</span>
               </button>
-              <p className="text-[10px] text-slate-400 text-center">
-                Wipes demo sales, purchases, dues and payments for real business start.
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 text-center leading-normal">
+                {language === 'bn'
+                  ? 'আপনার মূল অ্যাকাউন্ট ও প্রতিষ্ঠানের তথ্য অক্ষুণ্ণ রেখে সকল সেল, পারচেজ, কাস্টমার, সাপ্লায়ার, লোন, খরচ এবং ডামি ব্যাংক মুছে শূন্য (০) হবে।'
+                  : 'Wipes all sales, purchases, inventory, dues, loans, expenses and dummy banks to 0 while keeping your user accounts and organization profile 100% intact.'}
               </p>
-
-              {/* Seed Demo Reset */}
-              <button
-                type="button"
-                onClick={() => setConfirmDemoReset(true)}
-                className="w-full py-1.5 text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 text-[11px] underline block text-center"
-              >
-                {language === 'bn' ? 'ডেমো ডাটাবেজ রিস্টোর করুন' : 'Restore Demo Automobile Records'}
-              </button>
+              {resetSuccessMessage && (
+                <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-center text-xs font-semibold animate-in fade-in">
+                  ✓ {language === 'bn' ? 'অপারেশনাল ডাটা সফলভাবে রিসেট করা হয়েছে! সকল হিসাব শূন্য (০) থেকে প্রস্তুত।' : 'Operational data reset successful! All records are now clean and zero.'}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1132,67 +1504,164 @@ export const SettingsView: React.FC = () => {
       {/* Confirmation Dialog: Clean Reset */}
       {confirmCleanReset && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-rose-300 dark:border-rose-900 w-full max-w-sm p-5 text-xs space-y-3 animate-in fade-in zoom-in-95">
-            <div className="flex items-center gap-2 text-rose-600 font-bold text-sm">
-              <AlertTriangle className="w-5 h-5" />
-              <span>Confirm Clean Slate Reset</span>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-rose-300 dark:border-rose-900 w-full max-w-lg p-5 text-xs space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center gap-2 text-rose-600 font-bold text-base">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <span>{language === 'bn' ? 'সিস্টেম অপারেশনাল ডাটা রিসেট নিশ্চিতকরণ' : 'Confirm Operational Data Reset'}</span>
             </div>
-            <p className="text-slate-600 dark:text-slate-300">
-              This will clear all demo sales invoices, purchase records, dues, and payment transactions. Product inventory categories will remain intact. This cannot be undone.
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
+
+            <div className="space-y-3 leading-relaxed">
+              <p className="text-slate-700 dark:text-slate-300 font-medium">
+                {language === 'bn'
+                  ? 'আপনি কি নিশ্চিতভাবে সমস্ত অপারেশনাল ও লেনদেনের ডাটা মুছে সম্পূর্ণ নতুন (০) থেকে শুরু করতে চান?'
+                  : 'Are you sure you want to wipe all transaction records and start completely fresh from zero?'}
+              </p>
+
+              {/* Protected Items */}
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 space-y-1.5 text-[11px] text-emerald-900 dark:text-emerald-300">
+                <div className="font-bold flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+                  <span>✓</span> {language === 'bn' ? 'সম্পূর্ণ অক্ষুণ্ণ ও সুরক্ষিত থাকবে (ডিলিট হবে না):' : 'Protected & Fully Preserved (Will NOT be deleted):'}
+                </div>
+                <ul className="list-disc list-inside space-y-0.5 text-slate-700 dark:text-slate-300 text-[11px]">
+                  <li>{language === 'bn' ? 'আপনার মূল সুপার অ্যাডমিন অ্যাকাউন্ট ও সকল ইউজারের অ্যাকাউন্ট (পাসওয়ার্ড ও রোলসহ)' : 'Your Super Admin and all user accounts (logins, passwords & permissions)'}</li>
+                  <li>{language === 'bn' ? 'প্রতিষ্ঠানের নাম, লোগো, স্বত্বাধিকারীর নাম, ফোন, ঠিকানা ও সেটিংস' : 'Business name, proprietor title, logo, phone, address & system settings'}</li>
+                  <li>{language === 'bn' ? 'পার্টস ক্যাটাগরি, ব্র্যান্ড, দেশ ও খরচের খাতের তালিকা' : 'Product categories, brands, countries & expense category masters'}</li>
+                </ul>
+              </div>
+
+              {/* Wiped Items */}
+              <div className="p-3 bg-rose-50 dark:bg-rose-950/40 rounded-xl border border-rose-200 dark:border-rose-800 space-y-1.5 text-[11px] text-rose-900 dark:text-rose-300">
+                <div className="font-bold flex items-center gap-1.5 text-rose-700 dark:text-rose-400">
+                  <span>🗑️</span> {language === 'bn' ? 'যা যা মুছে শূন্য (০) হয়ে যাবে:' : 'Records that will be permanently cleared to 0:'}
+                </div>
+                <ul className="list-disc list-inside space-y-0.5 text-slate-700 dark:text-slate-300 text-[11px]">
+                  <li>{language === 'bn' ? 'সকল সেলস ও ইনভয়েস তালিকা (০ হবে)' : 'All sales invoices & order history (0)'}</li>
+                  <li>{language === 'bn' ? 'সকল পারচেজ বিল ও চালান (০ হবে)' : 'All purchases & procurement records (0)'}</li>
+                  <li>{language === 'bn' ? 'ইনভেন্টরি প্রোডাক্টস তালিকা (০ হবে, নতুন করে যোগ করবেন)' : 'Inventory products list (0 - ready for fresh entry)'}</li>
+                  <li>{language === 'bn' ? 'কাস্টমার ও সাপ্লায়ার ডিরেক্টরি এবং বাকি/পাওনা (০ হবে)' : 'Customer & Supplier directories, dues and payables (0)'}</li>
+                  <li>{language === 'bn' ? 'লোন ডিরেক্টরি ও লোন রেকর্ড (০ হবে)' : 'Loan parties and borrowing/lending records (0)'}</li>
+                  <li>{language === 'bn' ? 'এক্সপেন্স ট্র্যাকার খরচ ও ক্যাশফ্লো জার্নাল (০ হবে)' : 'Expense tracker records & cash flow journal (0)'}</li>
+                  <li>{language === 'bn' ? 'ক্যাশ ও ব্যাংকের সমস্ত ডামি অ্যাকাউন্ট মুছে শুধু ১টি শূন্য ব্যালেন্সের ক্যাশ কাউন্টার থাকবে (আপনি আপনার মতো নতুন ব্যাংক যুক্ত করবেন)' : 'All dummy banks wiped; only 1 zero-balance main cash counter remains (add your real banks freely)'}</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setConfirmCleanReset(false)}
-                className="px-3 py-1.5 rounded-xl border border-slate-300 text-slate-600 text-xs font-semibold"
+                className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800"
               >
-                Cancel
+                {language === 'bn' ? 'বাতিল' : 'Cancel'}
               </button>
               <button
                 type="button"
                 onClick={() => {
                   resetToCleanFreshData();
                   setConfirmCleanReset(false);
-                  alert('Database reset to fresh live state.');
+                  setResetSuccessMessage(true);
+                  setTimeout(() => setResetSuccessMessage(false), 5000);
                 }}
-                className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs"
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5"
               >
-                Yes, Reset Data
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>{language === 'bn' ? 'হ্যাঁ, ডাটা মুছে ফ্রেশ শুরু করুন' : 'Yes, Reset All Data to 0'}</span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Confirmation Dialog: Demo Reset */}
-      {confirmDemoReset && (
+      {/* Firebase Security Rules & Step-by-Step Setup Modal */}
+      {showRulesModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-amber-300 dark:border-amber-900 w-full max-w-sm p-5 text-xs space-y-3 animate-in fade-in zoom-in-95">
-            <div className="flex items-center gap-2 text-amber-600 font-bold text-sm">
-              <AlertTriangle className="w-5 h-5" />
-              <span>Restore Demo Automobile Records</span>
-            </div>
-            <p className="text-slate-600 dark:text-slate-300">
-              This will restore the sample automobile showroom data (RM Automobiles demo products, sales, customers, suppliers).
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 max-h-[90vh] flex flex-col">
+            <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/60">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-amber-500" />
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                  {language === 'bn' ? 'ফায়ারবেস সিকিউরিটি রুলস ও কনফিগারেশন' : 'Firebase Security Rules & Setup'}
+                </h3>
+              </div>
               <button
                 type="button"
-                onClick={() => setConfirmDemoReset(false)}
-                className="px-3 py-1.5 rounded-xl border border-slate-300 text-slate-600 text-xs font-semibold"
+                onClick={() => setShowRulesModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
-                Cancel
+                <X className="w-4 h-4" />
               </button>
+            </div>
+
+            <div className="p-5 space-y-4 overflow-y-auto text-xs">
+              {/* Step by step guide */}
+              <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 space-y-2">
+                <div className="font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5 text-xs">
+                  <span>📌</span> {language === 'bn' ? 'ফায়ারবেস কনসোলে যেভাবে রুলস সেট করবেন (মাত্র ১ মিনিট):' : 'How to set rules in Firebase Console (1 minute):'}
+                </div>
+                <ol className="list-decimal list-inside space-y-1 text-slate-700 dark:text-slate-300 text-[11px] leading-relaxed">
+                  <li>
+                    <strong>Firebase Console</strong> (<a href="https://console.firebase.google.com" target="_blank" rel="noreferrer" className="text-blue-600 underline">console.firebase.google.com</a>) এ লগইন করে <code className="bg-amber-200/50 dark:bg-amber-900/50 px-1 rounded font-mono font-bold">rm-automobile</code> প্রজেক্টটি ওপেন করুন।
+                  </li>
+                  <li>
+                    বামপাশের মেন্যু থেকে <strong>Build</strong> &rarr; <strong>Firestore Database</strong> &rarr; উপরে <strong>Rules</strong> ট্যাবে ক্লিক করুন।
+                  </li>
+                  <li>
+                    Rules এডিটর বক্সে আগের যা লেখা আছে সব সিলেক্ট করে মুছে ফেলুন এবং নিচের বক্সে থাকা সম্পূর্ণ কোডটি <strong>কপি করে পেস্ট</strong> করুন।
+                  </li>
+                  <li>
+                    উপরে ডানপাশের নীল রঙের <strong>Publish</strong> বাটনে ক্লিক করুন।
+                  </li>
+                  <li>
+                    বামে <strong>Authentication</strong> &rarr; <strong>Sign-in method</strong> এ গিয়ে <strong>Anonymous</strong> এনাবল (Enable) নিশ্চিত করুন।
+                  </li>
+                </ol>
+              </div>
+
+              {/* Code Box with Copy Button */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-700 dark:text-slate-300 text-[11px] flex items-center gap-1">
+                    <Code2 className="w-3.5 h-3.5 text-indigo-500" />
+                    firestore.rules (Security Rules Code):
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopyRules}
+                    className={`px-3 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-xs ${
+                      copiedRules
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                    }`}
+                  >
+                    {copiedRules ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>কপি হয়েছে! (Copied)</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>রুলস কোড কপি করুন</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <pre className="p-3.5 rounded-xl bg-slate-900 text-slate-100 font-mono text-[11px] leading-relaxed overflow-x-auto max-h-[260px] border border-slate-700 select-all">
+                    {firestoreRulesContent}
+                  </pre>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end bg-slate-50 dark:bg-slate-800/40">
               <button
                 type="button"
-                onClick={() => {
-                  resetToSeedData();
-                  setConfirmDemoReset(false);
-                  alert('Demo automobile database restored.');
-                }}
-                className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-xs"
+                onClick={() => setShowRulesModal(false)}
+                className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 font-bold text-xs"
               >
-                Restore Demo Data
+                {language === 'bn' ? 'ঠিক আছে / বন্ধ করুন' : 'Done / Close'}
               </button>
             </div>
           </div>
