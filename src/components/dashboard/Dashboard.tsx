@@ -309,11 +309,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           : 'bg-pink-500'
                       }`}
                     />
-                    <div>
-                      <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 line-clamp-1">
-                        {acc.name}
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                        {acc.type === 'bank' ? (acc.bankName || acc.name) : acc.name}
                       </div>
-                      <div className="text-[10px] text-slate-400">
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                        {acc.type === 'bank' && acc.name && acc.name !== acc.bankName ? `${acc.name} • ` : ''}
                         {acc.type.toUpperCase()} {acc.accountNumber ? `• ${acc.accountNumber}` : ''}
                       </div>
                     </div>

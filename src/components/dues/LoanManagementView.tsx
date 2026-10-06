@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { LoanParty, LoanRecord, LoanEntityType, InstallmentScheduleItem } from '../../types';
-import { formatBDT, formatDate, sanitizePhoneNumber, exportToCSV } from '../../utils/formatters';
+import { formatBDT, formatDate, sanitizePhoneNumber, exportToCSV, getAccountDisplayName } from '../../utils/formatters';
 import {
   getMatchingAccountForPaymentMethod,
   getMatchingPaymentMethodForAccount,
@@ -1268,7 +1268,7 @@ const LoanManagementViewInner: React.FC = () => {
                   >
                     {accounts.map((acc) => (
                       <option key={acc.id} value={acc.id}>
-                        {acc.name} ({formatBDT(acc.balance)})
+                        {getAccountDisplayName(acc)} ({formatBDT(acc.balance)})
                       </option>
                     ))}
                   </select>
@@ -1576,7 +1576,7 @@ const LoanManagementViewInner: React.FC = () => {
                       >
                         {accounts.map((a) => (
                           <option key={a.id} value={a.id}>
-                            {a.name} ({formatBDT(a.balance)})
+                            {getAccountDisplayName(a)} ({formatBDT(a.balance)})
                           </option>
                         ))}
                       </select>

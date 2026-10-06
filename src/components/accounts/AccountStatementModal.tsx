@@ -283,13 +283,14 @@ const AccountStatementModalContent: React.FC<{
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h2 className="text-sm sm:text-lg font-black text-slate-900 dark:text-white truncate">
-                    {account.name}
+                    {account.type === 'bank' ? (account.bankName || account.name) : account.name}
                   </h2>
                   <span className="text-[9px] sm:text-[10px] uppercase font-bold px-1.5 sm:px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
                     {account.type}
                   </span>
                 </div>
                 <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
+                  {account.type === 'bank' ? `${language === 'bn' ? 'হোল্ডার:' : 'Holder:'} ${account.name} • ` : ''}
                   {language === 'bn'
                     ? 'বিস্তারিত লেনদেন খাতা ও ক্যাশ ফ্লো অডিট স্টেটমেন্ট'
                     : 'Detailed Ledger & Audit Trail Statement'}

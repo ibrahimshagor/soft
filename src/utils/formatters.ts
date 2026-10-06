@@ -308,3 +308,27 @@ export function exportToCSV(filename: string, rows: (string | number)[][]) {
   link.click();
   document.body.removeChild(link);
 }
+
+export function getAccountDisplayName(acc?: {
+  name: string;
+  type?: string;
+  bankName?: string;
+  accountNumber?: string;
+  accountHolder?: string;
+} | null): string {
+  if (!acc) return '';
+  if (acc.type === 'bank') {
+    const bank = acc.bankName || acc.name;
+    const holder = acc.accountHolder || (acc.bankName && acc.name !== acc.bankName ? acc.name : '');
+    const num = acc.accountNumber ? ` (${acc.accountNumber})` : '';
+    if (holder && holder !== bank) {
+      return `${bank}${num} - ${holder}`;
+    }
+    return `${bank}${num}`;
+  }
+  if (acc.type === 'mfs' || acc.type === 'mobile_banking') {
+    const num = acc.accountNumber ? ` (${acc.accountNumber})` : '';
+    return `${acc.name}${num}`;
+  }
+  return acc.name;
+}

@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Expense } from '../../types';
-import { formatBDT, formatDate, exportToCSV } from '../../utils/formatters';
+import { formatBDT, formatDate, exportToCSV, getAccountDisplayName } from '../../utils/formatters';
 import { NewExpenseModal } from './NewExpenseModal';
 import { ExpenseCategoryModal } from './ExpenseCategoryModal';
 import { ReportExportModal } from '../common/ReportExportModal';
@@ -483,7 +483,7 @@ export const ExpenseTrackerView: React.FC = () => {
               <option value="ALL">{language === 'bn' ? 'সকল ক্যাশ/ব্যাংক' : 'All Accounts'}</option>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.name} ({formatBDT(a.balance)})
+                  {getAccountDisplayName(a)} ({formatBDT(a.balance)})
                 </option>
               ))}
             </select>

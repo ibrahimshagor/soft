@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { X, Building2, CheckCircle2, AlertCircle, FileText } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { formatBDT } from '../../utils/formatters';
+import { formatBDT, getAccountDisplayName } from '../../utils/formatters';
 
 interface PaySupplierModalProps {
   isOpen: boolean;
@@ -244,7 +244,7 @@ export const PaySupplierModal: React.FC<PaySupplierModalProps> = ({
               >
                 {accounts.map((acc) => (
                   <option key={acc.id} value={acc.id}>
-                    {acc.name} ({formatBDT(acc.balance)})
+                    {getAccountDisplayName(acc)} ({formatBDT(acc.balance)})
                   </option>
                 ))}
               </select>

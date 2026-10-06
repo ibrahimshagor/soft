@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Product, SaleItem, Sale } from '../../types';
-import { formatBDT } from '../../utils/formatters';
+import { formatBDT, getAccountDisplayName } from '../../utils/formatters';
 import {
   getMatchingAccountForPaymentMethod,
   getMatchingPaymentMethodForAccount,
@@ -1248,7 +1248,7 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
                       >
                         {accounts.map((acc) => (
                           <option key={acc.id} value={acc.id}>
-                            {acc.name} ({formatBDT(acc.balance)})
+                            {getAccountDisplayName(acc)} ({formatBDT(acc.balance)})
                           </option>
                         ))}
                       </select>
@@ -1694,7 +1694,7 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
                           >
                             {accounts.map((acc) => (
                               <option key={acc.id} value={acc.id}>
-                                {acc.name} (ব্যালেন্স: ৳{acc.balance.toLocaleString()})
+                                {getAccountDisplayName(acc)} (ব্যালেন্স: ৳{acc.balance.toLocaleString()})
                               </option>
                             ))}
                           </select>

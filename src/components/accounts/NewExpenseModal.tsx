@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Receipt, CheckCircle2, AlertCircle, Calendar } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Expense } from '../../types';
-import { formatBDT } from '../../utils/formatters';
+import { formatBDT, getAccountDisplayName } from '../../utils/formatters';
 
 interface NewExpenseModalProps {
   isOpen: boolean;
@@ -189,7 +189,7 @@ export const NewExpenseModal: React.FC<NewExpenseModalProps> = ({
             >
               {accounts.map((acc) => (
                 <option key={acc.id} value={acc.id}>
-                  {acc.name} ({formatBDT(acc.balance)})
+                  {getAccountDisplayName(acc)} ({formatBDT(acc.balance)})
                 </option>
               ))}
             </select>

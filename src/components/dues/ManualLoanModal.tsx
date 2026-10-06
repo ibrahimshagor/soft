@@ -24,7 +24,7 @@ import {
   InstallmentFrequency,
   InstallmentScheduleItem,
 } from '../../types';
-import { formatBDT } from '../../utils/formatters';
+import { formatBDT, getAccountDisplayName } from '../../utils/formatters';
 import {
   getMatchingAccountForPaymentMethod,
   getMatchingPaymentMethodForAccount,
@@ -751,7 +751,7 @@ export const ManualLoanModal: React.FC<ManualLoanModalProps> = ({
               >
                 {accounts.map((acc) => (
                   <option key={acc.id} value={acc.id}>
-                    {acc.name} (ব্যালেন্স: ৳{acc.balance.toLocaleString()})
+                    {getAccountDisplayName(acc)} (ব্যালেন্স: ৳{acc.balance.toLocaleString()})
                   </option>
                 ))}
               </select>

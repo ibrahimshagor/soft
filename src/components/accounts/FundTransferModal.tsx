@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, ArrowRightLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { formatBDT } from '../../utils/formatters';
+import { formatBDT, getAccountDisplayName } from '../../utils/formatters';
 
 interface FundTransferModalProps {
   isOpen: boolean;
@@ -89,7 +89,7 @@ export const FundTransferModal: React.FC<FundTransferModalProps> = ({ isOpen, on
             >
               {accounts.map((acc) => (
                 <option key={acc.id} value={acc.id}>
-                  {acc.name} (Balance: {formatBDT(acc.balance)})
+                  {getAccountDisplayName(acc)} (Balance: {formatBDT(acc.balance)})
                 </option>
               ))}
             </select>
@@ -106,7 +106,7 @@ export const FundTransferModal: React.FC<FundTransferModalProps> = ({ isOpen, on
             >
               {accounts.map((acc) => (
                 <option key={acc.id} value={acc.id}>
-                  {acc.name} (Balance: {formatBDT(acc.balance)})
+                  {getAccountDisplayName(acc)} (Balance: {formatBDT(acc.balance)})
                 </option>
               ))}
             </select>

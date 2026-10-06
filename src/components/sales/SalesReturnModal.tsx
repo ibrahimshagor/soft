@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, RotateCcw, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Sale } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { formatBDT } from '../../utils/formatters';
+import { formatBDT, getAccountDisplayName } from '../../utils/formatters';
 
 interface SalesReturnModalProps {
   sale: Sale | null;
@@ -176,7 +176,7 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({ sale, onClos
               >
                 {accounts.map((acc) => (
                   <option key={acc.id} value={acc.id}>
-                    {acc.name} (Balance: {formatBDT(acc.balance)})
+                    {getAccountDisplayName(acc)} (Balance: {formatBDT(acc.balance)})
                   </option>
                 ))}
               </select>

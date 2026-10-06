@@ -319,11 +319,22 @@ export const AccountsManager: React.FC = () => {
                             <Smartphone className="w-5 h-5" />
                           )}
                         </div>
-                        <div>
-                          <h3 className="font-black text-sm text-slate-900 dark:text-white leading-tight">
-                            {acc.name}
+                        <div className="min-w-0">
+                          <h3 className="font-black text-sm text-slate-900 dark:text-white leading-tight truncate">
+                            {acc.type === 'bank' ? (acc.bankName || acc.name) : acc.name}
                           </h3>
-                          <div className="flex items-center gap-1.5 mt-0.5">
+                          {acc.type === 'bank' && (
+                            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                              {acc.name ? `${language === 'bn' ? 'হোল্ডার:' : 'Holder:'} ${acc.name}` : ''}
+                              {acc.accountNumber ? ` • ${acc.accountNumber}` : ''}
+                            </p>
+                          )}
+                          {acc.type !== 'bank' && acc.accountNumber && (
+                            <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                              {acc.accountNumber}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-1.5 mt-1">
                             <span
                               className={`text-[9px] uppercase font-extrabold px-2 py-0.5 rounded-full ${
                                 acc.type === 'bank'
@@ -432,11 +443,20 @@ export const AccountsManager: React.FC = () => {
                         {/* Collapsible Info Drawer */}
                         {isExpanded && (
                           <div className="mt-2 p-3 rounded-2xl bg-blue-50/40 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 space-y-1.5 text-xs animate-in slide-in-from-top-2 duration-150">
-                            {acc.bankName && (
+                            {acc.type === 'bank' && (
                               <div className="flex items-center justify-between text-[11px]">
-                                <span className="text-slate-500">{language === 'bn' ? 'ব্যাংক:' : 'Bank:'}</span>
+                                <span className="text-slate-500">{language === 'bn' ? 'ব্যাংকের নাম:' : 'Bank Name:'}</span>
                                 <span className="font-bold text-slate-900 dark:text-white truncate max-w-[170px]">
-                                  {acc.bankName}
+                                  {acc.bankName || acc.name}
+                                </span>
+                              </div>
+                            )}
+
+                            {acc.type === 'bank' && acc.name && (
+                              <div className="flex items-center justify-between text-[11px] pt-0.5">
+                                <span className="text-slate-500">{language === 'bn' ? 'একাউন্ট হোল্ডার:' : 'A/C Holder:'}</span>
+                                <span className="font-bold text-slate-900 dark:text-white truncate max-w-[170px]">
+                                  {acc.name}
                                 </span>
                               </div>
                             )}

@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Product, PurchaseItem } from '../../types';
-import { formatBDT } from '../../utils/formatters';
+import { formatBDT, getAccountDisplayName } from '../../utils/formatters';
 import {
   getMatchingAccountForPaymentMethod,
   getMatchingPaymentMethodForAccount,
@@ -870,7 +870,7 @@ export const NewPurchaseModal: React.FC<NewPurchaseModalProps> = ({ isOpen, onCl
                       >
                         {accounts.map((acc) => (
                           <option key={acc.id} value={acc.id}>
-                            {acc.name} ({formatBDT(acc.balance)})
+                            {getAccountDisplayName(acc)} ({formatBDT(acc.balance)})
                           </option>
                         ))}
                       </select>

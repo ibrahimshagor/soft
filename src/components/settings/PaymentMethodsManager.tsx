@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { PaymentMethod, Account } from '../../types';
-import { formatBDT } from '../../utils/formatters';
+import { formatBDT, getAccountDisplayName } from '../../utils/formatters';
 
 export const PaymentMethodsManager: React.FC = () => {
   const { paymentMethods, accounts, addPaymentMethod, updatePaymentMethod, deletePaymentMethod, language } = useApp();
@@ -209,7 +209,7 @@ export const PaymentMethodsManager: React.FC = () => {
                   </option>
                   {accounts.map((acc) => (
                     <option key={acc.id} value={acc.id}>
-                      {acc.name} ({acc.type.toUpperCase()})
+                      {getAccountDisplayName(acc)} ({acc.type.toUpperCase()})
                     </option>
                   ))}
                 </select>
@@ -310,7 +310,7 @@ export const PaymentMethodsManager: React.FC = () => {
                 >
                   {accounts.map((acc) => (
                     <option key={acc.id} value={acc.id}>
-                      {acc.name} ({acc.type.toUpperCase()}) - {formatBDT(acc.balance)}
+                      {getAccountDisplayName(acc)} ({acc.type.toUpperCase()}) - {formatBDT(acc.balance)}
                     </option>
                   ))}
                 </select>

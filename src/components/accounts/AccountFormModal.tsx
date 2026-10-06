@@ -10,11 +10,14 @@ interface AccountFormModalProps {
 }
 
 const COMMON_BANKS = [
+  'Islami Bank',
+  'Dutch-Bangla Bank',
   'United Commercial Bank',
   'IFIC Bank',
-  'Dutch-Bangla Bank',
-  'Islami Bank',
   'Brac Bank',
+  'City Bank',
+  'Sonali Bank',
+  'Eastern Bank',
 ];
 
 const MFS_PROVIDERS = [
@@ -239,35 +242,21 @@ export const AccountFormModal: React.FC<AccountFormModalProps> = ({
           {accType === 'bank' && (
             <div className="space-y-3 p-3.5 rounded-2xl bg-blue-50/30 dark:bg-blue-950/10 border border-blue-100 dark:border-blue-900/40">
               <div>
-                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  {language === 'bn' ? 'একাউন্টের নাম / হোল্ডার নেম *' : 'Account Name / Holder Name *'}
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder={language === 'bn' ? 'যেমন: আর এম অটোমোবাইলস / মো: রহিম' : 'e.g. RM Automobiles / Md. Rahim'}
-                  value={accName}
-                  onChange={(e) => setAccName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 outline-hidden"
-                />
-              </div>
-
-              <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="font-bold text-slate-700 dark:text-slate-300">
-                    {language === 'bn' ? 'ব্যাংকের নাম (Bank Name) *' : 'Bank Name *'}
+                    {language === 'bn' ? '১. ব্যাংকের নাম (Bank Name) *' : '1. Bank Name *'}
                   </label>
-                  <span className="text-[10px] text-slate-400">{language === 'bn' ? 'নিচে ক্লিক করে সিলেক্ট করুন' : 'Click to select'}</span>
+                  <span className="text-[10px] text-slate-400">{language === 'bn' ? 'নিচে ক্লিক করে সিলেক্ট করতে পারেন' : 'Click below to select'}</span>
                 </div>
                 <input
                   type="text"
                   required
-                  placeholder={language === 'bn' ? 'যেমন: Islami Bank / Dutch-Bangla Bank' : 'e.g. Islami Bank'}
+                  placeholder={language === 'bn' ? 'যেমন: Islami Bank / Dutch-Bangla Bank / City Bank' : 'e.g. Islami Bank'}
                   value={bankName}
                   onChange={(e) => setBankName(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 outline-hidden"
                 />
-                {/* Specific 5 bank suggestions */}
+                {/* Specific bank suggestions */}
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {COMMON_BANKS.map((b) => (
                     <button
@@ -286,10 +275,24 @@ export const AccountFormModal: React.FC<AccountFormModalProps> = ({
                 </div>
               </div>
 
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  {language === 'bn' ? '২. একাউন্ট হোল্ডারের নাম / একাউন্টের নাম (Holder Name) *' : '2. Account Holder Name *'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder={language === 'bn' ? 'যেমন: আব্দুর রহিম রনি / আর এম অটোমোবাইলস' : 'e.g. Md. Rahim / RM Automobiles'}
+                  value={accName}
+                  onChange={(e) => setAccName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 outline-hidden"
+                />
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                    {language === 'bn' ? 'একাউন্ট নাম্বার (A/C No) *' : 'Account Number *'}
+                    {language === 'bn' ? '৩. একাউন্ট নাম্বার (A/C No) *' : '3. Account Number *'}
                   </label>
                   <input
                     type="text"
@@ -303,7 +306,7 @@ export const AccountFormModal: React.FC<AccountFormModalProps> = ({
 
                 <div>
                   <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                    {language === 'bn' ? 'ব্রাঞ্চ নেম (Branch Name)' : 'Branch Name'}
+                    {language === 'bn' ? '৪. ব্রাঞ্চ / শাখা নেম (Branch Name)' : '4. Branch Name'}
                   </label>
                   <input
                     type="text"

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { X, Coins, CheckCircle2, AlertCircle, Send, FileText } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { formatBDT, sanitizePhoneNumber } from '../../utils/formatters';
+import { formatBDT, sanitizePhoneNumber, getAccountDisplayName } from '../../utils/formatters';
 
 interface CollectDueModalProps {
   isOpen: boolean;
@@ -264,7 +264,7 @@ export const CollectDueModal: React.FC<CollectDueModalProps> = ({
               >
                 {accounts.map((acc) => (
                   <option key={acc.id} value={acc.id}>
-                    {acc.name} ({formatBDT(acc.balance)})
+                    {getAccountDisplayName(acc)} ({formatBDT(acc.balance)})
                   </option>
                 ))}
               </select>
