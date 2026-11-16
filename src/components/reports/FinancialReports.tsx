@@ -51,8 +51,8 @@ export const FinancialReports: React.FC = () => {
     const now = new Date();
     const todayStr = now.toISOString().slice(0, 10);
 
-    return sales.filter((s) => {
-      const itemDate = s.date.slice(0, 10);
+    return (sales || []).filter((s) => {
+      const itemDate = (s.date || '').slice(0, 10);
       if (dateFilter === 'today') return itemDate === todayStr;
       if (dateFilter === '7days') {
         const d = new Date(s.date);
@@ -80,8 +80,8 @@ export const FinancialReports: React.FC = () => {
     const now = new Date();
     const todayStr = now.toISOString().slice(0, 10);
 
-    return expenses.filter((e) => {
-      const itemDate = e.date.slice(0, 10);
+    return (expenses || []).filter((e) => {
+      const itemDate = (e.date || '').slice(0, 10);
       if (dateFilter === 'today') return itemDate === todayStr;
       if (dateFilter === '7days') {
         const d = new Date(e.date);
@@ -113,7 +113,7 @@ export const FinancialReports: React.FC = () => {
 
   const totalCOGS = useMemo(() => {
     return filteredSales.reduce((sum, s) => {
-      const saleCost = s.items.reduce((itemSum, item) => itemSum + item.quantity * (item.costPrice || 0), 0);
+      const saleCost = (s.items || []).reduce((itemSum, item) => itemSum + (Number(item.quantity) || 0) * (Number(item.costPrice) || 0), 0);
       return sum + saleCost;
     }, 0);
   }, [filteredSales]);
@@ -142,12 +142,12 @@ export const FinancialReports: React.FC = () => {
   const topSellingProducts = useMemo(() => {
     const map: { [prodId: string]: { name: string; sku: string; qty: number; revenue: number } } = {};
     filteredSales.forEach((s) => {
-      s.items.forEach((item) => {
+      (s.items || []).forEach((item) => {
         if (!map[item.productId]) {
           map[item.productId] = { name: item.productName, sku: item.sku, qty: 0, revenue: 0 };
         }
-        map[item.productId].qty += item.quantity;
-        map[item.productId].revenue += item.total;
+        map[item.productId].qty += (Number(item.quantity) || 0);
+        map[item.productId].revenue += (Number(item.total) || 0);
       });
     });
     return Object.values(map).sort((a, b) => b.revenue - a.revenue).slice(0, 5);

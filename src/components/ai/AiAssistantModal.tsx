@@ -85,19 +85,19 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ isOpen, onCl
     const thisMonthPrefix = new Date().toISOString().slice(0, 7);
 
     // Sales today
-    const todaySalesList = sales.filter((s) => s.date.startsWith(todayStr));
-    const todaySalesTotal = todaySalesList.reduce((sum, s) => sum + s.grandTotal, 0);
-    const todayCollected = todaySalesList.reduce((sum, s) => sum + s.paidAmount, 0);
-    const todayDueGiven = todaySalesList.reduce((sum, s) => sum + s.dueAmount, 0);
-    const todayGrossProfit = todaySalesList.reduce((sum, s) => sum + s.grossProfit, 0);
+    const todaySalesList = (sales || []).filter((s) => (s.date || '').startsWith(todayStr));
+    const todaySalesTotal = todaySalesList.reduce((sum, s) => sum + (Number(s.grandTotal) || 0), 0);
+    const todayCollected = todaySalesList.reduce((sum, s) => sum + (Number(s.paidAmount) || 0), 0);
+    const todayDueGiven = todaySalesList.reduce((sum, s) => sum + (Number(s.dueAmount) || 0), 0);
+    const todayGrossProfit = todaySalesList.reduce((sum, s) => sum + (Number(s.grossProfit) || 0), 0);
 
     // This month sales & expenses
-    const thisMonthSales = sales
-      .filter((s) => s.date.startsWith(thisMonthPrefix))
-      .reduce((sum, s) => sum + s.grandTotal, 0);
-    const thisMonthExpenses = expenses
-      .filter((e) => e.date.startsWith(thisMonthPrefix))
-      .reduce((sum, e) => sum + e.amount, 0);
+    const thisMonthSales = (sales || [])
+      .filter((s) => (s.date || '').startsWith(thisMonthPrefix))
+      .reduce((sum, s) => sum + (Number(s.grandTotal) || 0), 0);
+    const thisMonthExpenses = (expenses || [])
+      .filter((e) => (e.date || '').startsWith(thisMonthPrefix))
+      .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
     // Customer Dues
     const customersWithDue = customers

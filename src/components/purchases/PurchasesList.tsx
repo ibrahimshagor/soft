@@ -272,7 +272,7 @@ export const PurchasesList: React.FC<PurchasesListProps> = ({ onOpenNewPurchase 
 
               {/* Bottom line: Items and Due Date */}
               <div className="flex items-center justify-between text-[11px] text-slate-400 px-1 pt-1">
-                <span>{purchase.items.length} {language === 'bn' ? 'টি পার্টস' : 'parts items'}</span>
+                <span>{(purchase.items || []).length} {language === 'bn' ? 'টি পার্টস' : 'parts items'}</span>
                 {purchase.dueDate && (
                   <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold">
                     <Clock className="w-3 h-3" />
@@ -330,7 +330,7 @@ export const PurchasesList: React.FC<PurchasesListProps> = ({ onOpenNewPurchase 
                       {purchase.supplierInvoiceNo || '—'}
                     </td>
                     <td className="py-3 px-3.5 text-center font-semibold text-slate-600 dark:text-slate-400">
-                      {purchase.items.length} parts
+                      {(purchase.items || []).length} parts
                     </td>
                     <td className="py-3 px-3.5 text-right font-black text-slate-900 dark:text-white">
                       {formatBDT(purchase.grandTotal)}

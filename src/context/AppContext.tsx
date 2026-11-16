@@ -58,11 +58,114 @@ import {
   syncAllToFirestore as bulkSyncFirestore,
   testFirestoreConnection,
   subscribeToAuthStatus,
+  subscribeToFirebaseErrors,
+  SnapshotMeta,
 } from '../services/firebase';
 import {
   computeCustomerReconciledTotals,
   getSaleUpfrontPaid,
 } from '../utils/customerReconciliation';
+
+function safeJsonParse<T>(raw: string | null, fallback: T): T {
+  if (!raw) return fallback;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed !== null && parsed !== undefined ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function normalizeSale(raw: any): Sale {
+  const subtotal = Number(raw?.subtotal) || 0;
+  const discountTotal = Number(raw?.discountTotal) || 0;
+  const deliveryCharge = Number(raw?.deliveryCharge) || 0;
+  const taxAmount = Number(raw?.taxAmount) || 0;
+  const grandTotal = Number(raw?.grandTotal) || Math.max(0, subtotal - discountTotal + deliveryCharge + taxAmount);
+  const paidAmount = Number(raw?.paidAmount) || 0;
+  const dueAmount = raw?.dueAmount !== undefined ? Math.max(0, Number(raw.dueAmount) || 0) : Math.max(0, grandTotal - paidAmount);
+  const paymentStatus: Sale['paymentStatus'] =
+    raw?.paymentStatus ||
+    (dueAmount <= 0 && grandTotal > 0 ? 'PAID' : paidAmount > 0 ? 'PARTIALLY_PAID' : 'UNPAID');
+
+  return {
+    ...raw,
+    id: String(raw?.id || 'sale-' + Math.random().toString(36).slice(2, 9)),
+    invoiceNo: String(raw?.invoiceNo || ''),
+    date: String(raw?.date || raw?.createdAt || new Date().toISOString()),
+    customerId: String(raw?.customerId || 'walk-in'),
+    customerName: String(raw?.customerName || 'Walk-in Customer'),
+    items: Array.isArray(raw?.items) ? raw.items : [],
+    subtotal,
+    discountTotal,
+    deliveryCharge,
+    taxAmount,
+    grandTotal,
+    paidAmount,
+    dueAmount,
+    paymentStatus,
+    totalCost: Number(raw?.totalCost) || 0,
+    grossProfit: Number(raw?.grossProfit) || 0,
+    sellerId: String(raw?.sellerId || 'admin-1'),
+    sellerName: String(raw?.sellerName || 'Administrator'),
+    createdAt: String(raw?.createdAt || raw?.date || new Date().toISOString()),
+  };
+}
+
+function normalizePurchase(raw: any): Purchase {
+  const grandTotal = Number(raw?.grandTotal) || 0;
+  const paidAmount = Number(raw?.paidAmount) || 0;
+  const payableAmount = raw?.payableAmount !== undefined ? Math.max(0, Number(raw.payableAmount) || 0) : Math.max(0, grandTotal - paidAmount);
+  return {
+    ...raw,
+    id: String(raw?.id || 'pur-' + Math.random().toString(36).slice(2, 9)),
+    purchaseNo: String(raw?.purchaseNo || ''),
+    date: String(raw?.date || raw?.createdAt || new Date().toISOString()),
+    supplierId: String(raw?.supplierId || ''),
+    supplierName: String(raw?.supplierName || 'Supplier'),
+    items: Array.isArray(raw?.items) ? raw.items : [],
+    subtotal: Number(raw?.subtotal) || 0,
+    discountTotal: Number(raw?.discountTotal) || 0,
+    additionalCosts: Number(raw?.additionalCosts) || 0,
+    grandTotal,
+    paidAmount,
+    payableAmount,
+    paymentStatus: raw?.paymentStatus || (payableAmount <= 0 ? 'PAID' : paidAmount > 0 ? 'PARTIALLY_PAID' : 'UNPAID'),
+    createdAt: String(raw?.createdAt || raw?.date || new Date().toISOString()),
+  };
+}
+
+function normalizeExpense(raw: any): Expense {
+  return {
+    ...raw,
+    id: String(raw?.id || 'exp-' + Math.random().toString(36).slice(2, 9)),
+    date: String(raw?.date || raw?.createdAt || new Date().toISOString()),
+    categoryId: String(raw?.categoryId || ''),
+    categoryName: String(raw?.categoryName || 'General Expense'),
+    amount: Number(raw?.amount) || 0,
+    accountId: String(raw?.accountId || ''),
+    accountName: String(raw?.accountName || ''),
+    description: String(raw?.description || ''),
+    enteredBy: String(raw?.enteredBy || 'Administrator'),
+    createdAt: String(raw?.createdAt || raw?.date || new Date().toISOString()),
+  };
+}
+
+function normalizePaymentRecord(raw: any): PaymentRecord {
+  return {
+    ...raw,
+    id: String(raw?.id || 'pay-' + Math.random().toString(36).slice(2, 9)),
+    receiptNo: String(raw?.receiptNo || ''),
+    date: String(raw?.date || raw?.createdAt || new Date().toISOString()),
+    type: raw?.type || 'customer_collection',
+    partyId: String(raw?.partyId || ''),
+    partyName: String(raw?.partyName || ''),
+    amount: Number(raw?.amount) || 0,
+    previousBalance: Number(raw?.previousBalance) || 0,
+    newBalance: Number(raw?.newBalance) || 0,
+    createdAt: String(raw?.createdAt || raw?.date || new Date().toISOString()),
+  };
+}
 
 interface DueReminder {
   id: string;
@@ -433,15 +536,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   });
   const [brands, setBrands] = useState<Brand[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_brands`);
-    return saved ? JSON.parse(saved) : initialBrands;
+    return safeJsonParse<Brand[]>(saved, initialBrands);
   });
   const [countries, setCountries] = useState<Country[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_countries`);
-    return saved ? JSON.parse(saved) : initialCountries;
+    return safeJsonParse<Country[]>(saved, initialCountries);
   });
   const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_exp_cats`);
-    return saved ? JSON.parse(saved) : initialExpenseCategories;
+    return safeJsonParse<ExpenseCategory[]>(saved, initialExpenseCategories);
   });
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_payment_methods`);
@@ -569,10 +672,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [sales, setSales] = useState<Sale[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_sales`);
     if (saved !== null) {
-      try {
-        const list = JSON.parse(saved);
-        if (Array.isArray(list)) return list;
-      } catch (e) {}
+      const list = safeJsonParse<any[] | null>(saved, null);
+      if (Array.isArray(list)) return list.map(normalizeSale);
     }
     if (isCleanSlate) return [];
     return initialSales;
@@ -581,10 +682,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [purchases, setPurchases] = useState<Purchase[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_purchases`);
     if (saved !== null) {
-      try {
-        const list = JSON.parse(saved);
-        if (Array.isArray(list)) return list;
-      } catch (e) {}
+      const list = safeJsonParse<any[] | null>(saved, null);
+      if (Array.isArray(list)) return list.map(normalizePurchase);
     }
     if (isCleanSlate) return [];
     return initialPurchases;
@@ -592,16 +691,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [paymentRecords, setPaymentRecords] = useState<PaymentRecord[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_payments`);
-    return saved ? JSON.parse(saved) : [];
+    const list = safeJsonParse<any[]>(saved, []);
+    return Array.isArray(list) ? list.map(normalizePaymentRecord) : [];
   });
 
   const [expenses, setExpenses] = useState<Expense[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_expenses`);
     if (saved !== null) {
-      try {
-        const list = JSON.parse(saved);
-        if (Array.isArray(list)) return list;
-      } catch (e) {}
+      const list = safeJsonParse<any[] | null>(saved, null);
+      if (Array.isArray(list)) return list.map(normalizeExpense);
     }
     if (isCleanSlate) return [];
     return initialExpenses;
@@ -609,12 +707,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [incomes, setIncomes] = useState<Income[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_incomes`);
-    return saved ? JSON.parse(saved) : [];
+    const parsed = safeJsonParse<Income[]>(saved, []);
+    return Array.isArray(parsed) ? parsed : [];
   });
 
   const [stockAdjustments, setStockAdjustments] = useState<StockAdjustment[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_stock_adj`);
-    return saved ? JSON.parse(saved) : [];
+    const parsed = safeJsonParse<StockAdjustment[]>(saved, []);
+    return Array.isArray(parsed) ? parsed : [];
   });
 
   const [salesReturns, setSalesReturns] = useState<SalesReturn[]>([]);
@@ -622,7 +722,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_audit`);
-    return saved ? JSON.parse(saved) : initialAuditLogs;
+    const parsed = safeJsonParse<AuditLog[]>(saved, initialAuditLogs);
+    return Array.isArray(parsed) ? parsed : initialAuditLogs;
   });
 
   const [loanParties, setLoanParties] = useState<LoanParty[]>(() => {
@@ -688,18 +789,74 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const firestoreReadableRef = useRef(true);
   const [collectionsHydrated, setCollectionsHydrated] = useState(false);
   const lastReconciledSignatureRef = useRef<Record<string, string>>({});
+  const systemStateClearedForActiveDataRef = useRef(false);
 
-  // Listen to Firebase Auth state
+  // Live refs so mount listeners (e.g. unsubSystemState / cache guards) always inspect latest records
+  const liveOperationalRef = useRef({
+    sales,
+    purchases,
+    products,
+    customers,
+    suppliers,
+    expenses,
+    paymentRecords,
+    loanParties,
+    loanRecords,
+    accounts,
+    incomes,
+    stockAdjustments,
+  });
+  useEffect(() => {
+    liveOperationalRef.current = {
+      sales,
+      purchases,
+      products,
+      customers,
+      suppliers,
+      expenses,
+      paymentRecords,
+      loanParties,
+      loanRecords,
+      accounts,
+      incomes,
+      stockAdjustments,
+    };
+  }, [sales, purchases, products, customers, suppliers, expenses, paymentRecords, loanParties, loanRecords, accounts, incomes, stockAdjustments]);
+
+  const clearCleanSlateAndMarkActive = (forceCloudWrite = false) => {
+    try {
+      localStorage.removeItem('RM_CLEAN_SLATE_MODE');
+    } catch (e) {}
+    if (forceCloudWrite || !systemStateClearedForActiveDataRef.current) {
+      systemStateClearedForActiveDataRef.current = true;
+      setFirestoreDoc('settings', 'systemState', {
+        lastResetAt: null,
+        activeDataSince: new Date().toISOString(),
+      }).catch(() => {});
+    }
+  };
+
+  // Listen to Firebase Auth state & Firebase error broadcasts
   useEffect(() => {
     const unsubAuth = subscribeToAuthStatus((user, err) => {
       setCloudSyncStatus((prev) => ({
         ...prev,
         isAuthenticated: !!user,
         userUid: user?.uid,
-        error: err || null,
+        error: err || prev.error || null,
       }));
     });
-    return unsubAuth;
+    const unsubErrors = subscribeToFirebaseErrors((errMsg) => {
+      setCloudSyncStatus((prev) => ({
+        ...prev,
+        isConnected: false,
+        error: errMsg,
+      }));
+    });
+    return () => {
+      unsubAuth();
+      unsubErrors();
+    };
   }, []);
 
   const testFirestore = async () => {
@@ -734,9 +891,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     };
 
+    const shouldSkipEmptyCache = (items: any[], existingLength: number, meta?: SnapshotMeta) => {
+      return Boolean(meta?.fromCache && items.length === 0 && existingLength > 0);
+    };
+
     // Listen to Products in real-time
-    const unsubProducts = subscribeToCollection<Product>('products', (cloudProducts) => {
+    const unsubProducts = subscribeToCollection<Product>('products', (cloudProducts, meta) => {
       if (isMounted && Array.isArray(cloudProducts)) {
+        if (shouldSkipEmptyCache(cloudProducts, liveOperationalRef.current.products.length, meta)) return;
+        if (cloudProducts.length > 0) {
+          localStorage.removeItem('RM_CLEAN_SLATE_MODE');
+        }
         setProducts(cloudProducts);
         try {
           localStorage.setItem(`${STORAGE_KEY}_products`, JSON.stringify(cloudProducts));
@@ -747,9 +912,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Listen to Sales in real-time
     const unsubSales = subscribeToCollection<Sale>(
       'sales',
-      (cloudSales) => {
+      (cloudSales, meta) => {
         if (isMounted && Array.isArray(cloudSales)) {
-          const sorted = [...cloudSales].sort((a, b) => {
+          if (shouldSkipEmptyCache(cloudSales, liveOperationalRef.current.sales.length, meta)) {
+            markCollectionHydrated('sales', true);
+            return;
+          }
+          const normalized = cloudSales.map(normalizeSale);
+          if (normalized.length > 0) {
+            localStorage.removeItem('RM_CLEAN_SLATE_MODE');
+          }
+          const sorted = [...normalized].sort((a, b) => {
             const timeA = new Date(a.createdAt || a.date).getTime() || 0;
             const timeB = new Date(b.createdAt || b.date).getTime() || 0;
             return timeB - timeA;
@@ -765,9 +938,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
 
     // Listen to Purchases in real-time
-    const unsubPurchases = subscribeToCollection<Purchase>('purchases', (cloudPurchases) => {
+    const unsubPurchases = subscribeToCollection<Purchase>('purchases', (cloudPurchases, meta) => {
       if (isMounted && Array.isArray(cloudPurchases)) {
-        const sorted = [...cloudPurchases].sort((a, b) => {
+        if (shouldSkipEmptyCache(cloudPurchases, liveOperationalRef.current.purchases.length, meta)) return;
+        const normalized = cloudPurchases.map(normalizePurchase);
+        if (normalized.length > 0) {
+          localStorage.removeItem('RM_CLEAN_SLATE_MODE');
+        }
+        const sorted = [...normalized].sort((a, b) => {
           const timeA = new Date(a.createdAt || a.date).getTime() || 0;
           const timeB = new Date(b.createdAt || b.date).getTime() || 0;
           return timeB - timeA;
@@ -782,8 +960,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Listen to Customers in real-time
     const unsubCustomers = subscribeToCollection<Customer>(
       'customers',
-      (cloudCustomers) => {
+      (cloudCustomers, meta) => {
         if (isMounted && Array.isArray(cloudCustomers)) {
+          if (shouldSkipEmptyCache(cloudCustomers, liveOperationalRef.current.customers.length, meta)) {
+            markCollectionHydrated('customers', true);
+            return;
+          }
+          if (cloudCustomers.length > 0) {
+            localStorage.removeItem('RM_CLEAN_SLATE_MODE');
+          }
           setCustomers(cloudCustomers);
           try {
             localStorage.setItem(`${STORAGE_KEY}_customers`, JSON.stringify(cloudCustomers));
@@ -795,8 +980,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
 
     // Listen to Suppliers in real-time
-    const unsubSuppliers = subscribeToCollection<Supplier>('suppliers', (cloudSuppliers) => {
+    const unsubSuppliers = subscribeToCollection<Supplier>('suppliers', (cloudSuppliers, meta) => {
       if (isMounted && Array.isArray(cloudSuppliers)) {
+        if (shouldSkipEmptyCache(cloudSuppliers, liveOperationalRef.current.suppliers.length, meta)) return;
         setSuppliers(cloudSuppliers);
         try {
           localStorage.setItem(`${STORAGE_KEY}_suppliers`, JSON.stringify(cloudSuppliers));
@@ -805,8 +991,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     // Listen to Accounts in real-time
-    const unsubAccounts = subscribeToCollection<Account>('accounts', (cloudAccounts) => {
+    const unsubAccounts = subscribeToCollection<Account>('accounts', (cloudAccounts, meta) => {
       if (isMounted && Array.isArray(cloudAccounts)) {
+        if (shouldSkipEmptyCache(cloudAccounts, liveOperationalRef.current.accounts.length, meta)) return;
         const isClean = localStorage.getItem('RM_CLEAN_SLATE_MODE') === 'true';
         let targetAccounts = cloudAccounts;
         if (isClean) {
@@ -837,18 +1024,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     // Listen to Expenses in real-time
-    const unsubExpenses = subscribeToCollection<Expense>('expenses', (cloudExpenses) => {
+    const unsubExpenses = subscribeToCollection<Expense>('expenses', (cloudExpenses, meta) => {
       if (isMounted && Array.isArray(cloudExpenses)) {
-        setExpenses(cloudExpenses);
+        if (shouldSkipEmptyCache(cloudExpenses, liveOperationalRef.current.expenses.length, meta)) return;
+        const normalized = cloudExpenses.map(normalizeExpense);
+        setExpenses(normalized);
         try {
-          localStorage.setItem(`${STORAGE_KEY}_expenses`, JSON.stringify(cloudExpenses));
+          localStorage.setItem(`${STORAGE_KEY}_expenses`, JSON.stringify(normalized));
         } catch (e) {}
       }
     });
 
     // Listen to Loan Parties in real-time
-    const unsubLoanParties = subscribeToCollection<LoanParty>('loanParties', (cloudLoanParties) => {
+    const unsubLoanParties = subscribeToCollection<LoanParty>('loanParties', (cloudLoanParties, meta) => {
       if (isMounted && Array.isArray(cloudLoanParties)) {
+        if (shouldSkipEmptyCache(cloudLoanParties, liveOperationalRef.current.loanParties.length, meta)) return;
         setLoanParties(cloudLoanParties);
         try {
           localStorage.setItem(`${STORAGE_KEY}_loan_parties`, JSON.stringify(cloudLoanParties));
@@ -859,8 +1049,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Listen to Loan Records in real-time
     const unsubLoanRecords = subscribeToCollection<LoanRecord>(
       'loanRecords',
-      (cloudLoanRecords) => {
+      (cloudLoanRecords, meta) => {
         if (isMounted && Array.isArray(cloudLoanRecords)) {
+          if (shouldSkipEmptyCache(cloudLoanRecords, liveOperationalRef.current.loanRecords.length, meta)) {
+            markCollectionHydrated('loanRecords', true);
+            return;
+          }
           setLoanRecords(cloudLoanRecords);
           try {
             localStorage.setItem(`${STORAGE_KEY}_loan_records`, JSON.stringify(cloudLoanRecords));
@@ -874,17 +1068,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Listen to Payment Records in real-time
     const unsubPayments = subscribeToCollection<PaymentRecord>(
       'paymentRecords',
-      (cloudPayments) => {
+      (cloudPayments, meta) => {
         if (isMounted && Array.isArray(cloudPayments)) {
-          setPaymentRecords(cloudPayments);
+          if (shouldSkipEmptyCache(cloudPayments, liveOperationalRef.current.paymentRecords.length, meta)) {
+            markCollectionHydrated('paymentRecords', true);
+            return;
+          }
+          const normalized = cloudPayments.map(normalizePaymentRecord);
+          setPaymentRecords(normalized);
           try {
-            localStorage.setItem(`${STORAGE_KEY}_payments`, JSON.stringify(cloudPayments));
+            localStorage.setItem(`${STORAGE_KEY}_payments`, JSON.stringify(normalized));
           } catch (e) {}
           markCollectionHydrated('paymentRecords', true);
         }
       },
       () => markCollectionHydrated('paymentRecords', false)
     );
+
+    // Listen to Cloud Reset Archives so recovery snapshots work across domains/devices
+    const unsubArchives = subscribeToCollection<ResetArchive>('resetArchives', (cloudArchives) => {
+      if (isMounted && Array.isArray(cloudArchives) && cloudArchives.length > 0) {
+        setResetArchives((prev) => {
+          const map = new Map<string, ResetArchive>();
+          prev.forEach((a) => map.set(a.id, a));
+          cloudArchives.forEach((a) => map.set(a.id, a));
+          const merged = Array.from(map.values())
+            .sort((a, b) => (new Date(b.timestamp).getTime() || 0) - (new Date(a.timestamp).getTime() || 0))
+            .slice(0, 10);
+          try {
+            localStorage.setItem('RM_RESET_ARCHIVES', JSON.stringify(merged));
+          } catch (e) {}
+          return merged;
+        });
+      }
+    });
 
     // Listen to Users in real-time
     const unsubUsers = subscribeToCollection<User>('users', (cloudUsers) => {
@@ -913,52 +1130,166 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     // Listen to System State for cross-device & cross-domain synchronized clean resets
-    const unsubSystemState = subscribeToDoc<{ lastResetAt?: string }>('settings', 'systemState', (cloudState) => {
-      if (isMounted && cloudState && cloudState.lastResetAt) {
-        const localReset = localStorage.getItem('RM_LAST_RESET_TIMESTAMP') || '';
-        if (cloudState.lastResetAt > localReset) {
-          localStorage.setItem('RM_LAST_RESET_TIMESTAMP', cloudState.lastResetAt);
-          localStorage.setItem('RM_CLEAN_SLATE_MODE', 'true');
-          setProducts([]);
-          setSales([]);
-          setPurchases([]);
-          setCustomers([]);
-          setSuppliers([]);
-          setExpenses([]);
-          setIncomes([]);
-          setPaymentRecords([]);
-          setLoanParties([]);
-          setLoanRecords([]);
-          setStockAdjustments([]);
-          setSalesReturns([]);
-          setDailyClosings([]);
-          const freshCashAcc: Account[] = [
-            {
-              id: 'acc-1',
-              name: 'দোকান ক্যাশ কাউন্টার (Cash Counter)',
-              type: 'cash',
-              balance: 0,
-              isDefault: true,
-            },
-          ];
-          setAccounts(freshCashAcc);
-          try {
-            localStorage.setItem(`${STORAGE_KEY}_products`, JSON.stringify([]));
-            localStorage.setItem(`${STORAGE_KEY}_sales`, JSON.stringify([]));
-            localStorage.setItem(`${STORAGE_KEY}_purchases`, JSON.stringify([]));
-            localStorage.setItem(`${STORAGE_KEY}_customers`, JSON.stringify([]));
-            localStorage.setItem(`${STORAGE_KEY}_suppliers`, JSON.stringify([]));
-            localStorage.setItem(`${STORAGE_KEY}_expenses`, JSON.stringify([]));
-            localStorage.setItem(`${STORAGE_KEY}_incomes`, JSON.stringify([]));
-            localStorage.setItem(`${STORAGE_KEY}_payments`, JSON.stringify([]));
-            localStorage.setItem(`${STORAGE_KEY}_loan_parties`, JSON.stringify([]));
-            localStorage.setItem(`${STORAGE_KEY}_loan_records`, JSON.stringify([]));
-            localStorage.setItem(`${STORAGE_KEY}_stock_adj`, JSON.stringify([]));
-            localStorage.setItem(`${STORAGE_KEY}_accounts`, JSON.stringify(freshCashAcc));
-          } catch (e) {}
+    // SAFEGUARDED: never lets an old/stale lastResetAt wipe active business records on another domain!
+    const unsubSystemState = subscribeToDoc<{ lastResetAt?: string | null; activeDataSince?: string | null }>(
+      'settings',
+      'systemState',
+      (cloudState) => {
+        if (!isMounted || !cloudState) return;
+        if (!cloudState.lastResetAt) {
+          if (cloudState.activeDataSince) {
+            try {
+              localStorage.removeItem('RM_CLEAN_SLATE_MODE');
+            } catch (e) {}
+          }
+          return;
         }
+        if (cloudState.activeDataSince && cloudState.activeDataSince >= cloudState.lastResetAt) {
+          try {
+            localStorage.removeItem('RM_CLEAN_SLATE_MODE');
+          } catch (e) {}
+          return;
+        }
+
+        const localReset = localStorage.getItem('RM_LAST_RESET_TIMESTAMP') || '';
+        if (cloudState.lastResetAt <= localReset) return;
+
+        // Inspect live records and reset age before wiping anything
+        const live = liveOperationalRef.current;
+        const resetTimeMs = new Date(cloudState.lastResetAt).getTime() || 0;
+        const resetAgeMs = Date.now() - resetTimeMs;
+        const hasLiveRecords =
+          live.sales.length > 0 ||
+          live.purchases.length > 0 ||
+          live.products.length > 0 ||
+          live.customers.length > 0 ||
+          live.expenses.length > 0 ||
+          live.paymentRecords.length > 0 ||
+          live.loanRecords.length > 0;
+
+        const allRecords = [
+          ...live.sales,
+          ...live.purchases,
+          ...live.products,
+          ...live.customers,
+          ...live.expenses,
+          ...live.paymentRecords,
+          ...live.loanRecords,
+        ];
+        const hasNewerRecordThanReset = allRecords.some((rec: any) => {
+          const ts = rec?.createdAt || rec?.updatedAt || rec?.date;
+          if (!ts) return false;
+          const tMs = new Date(ts).getTime() || 0;
+          return tMs > resetTimeMs;
+        });
+
+        // If any active record was created AFTER this reset timestamp, OR this reset timestamp is stale (> 2 min old) while active data exists,
+        // DO NOT wipe! Neutralize the stale lastResetAt instead.
+        if (hasNewerRecordThanReset || (resetAgeMs > 2 * 60 * 1000 && hasLiveRecords)) {
+          try {
+            localStorage.setItem('RM_LAST_RESET_TIMESTAMP', cloudState.lastResetAt);
+            localStorage.removeItem('RM_CLEAN_SLATE_MODE');
+          } catch (e) {}
+          clearCleanSlateAndMarkActive(true);
+          return;
+        }
+
+        // Only wipe if this is a fresh live reset (< 2 min old) and no newer data exists
+        if (resetAgeMs > 2 * 60 * 1000) {
+          try {
+            localStorage.setItem('RM_LAST_RESET_TIMESTAMP', cloudState.lastResetAt);
+          } catch (e) {}
+          return;
+        }
+
+        // Auto-archive live local records before applying remote clean reset so nothing can be lost
+        if (hasLiveRecords) {
+          const emergencyArchive: ResetArchive = {
+            id: 'archive-sync-' + Date.now(),
+            timestamp: new Date().toISOString(),
+            resetByUserId: currentUser?.id || 'system',
+            resetByUserName: 'Cross-Device Sync Guard',
+            reason: 'Auto-backup before cross-device clean reset',
+            summary: {
+              salesCount: live.sales.length,
+              purchasesCount: live.purchases.length,
+              productsCount: live.products.length,
+              customersCount: live.customers.length,
+              suppliersCount: live.suppliers.length,
+              loanPartiesCount: live.loanParties.length,
+              loanRecordsCount: live.loanRecords.length,
+              expensesCount: live.expenses.length,
+              incomesCount: live.incomes.length,
+              paymentRecordsCount: live.paymentRecords.length,
+              totalSalesVolume: live.sales.reduce((sum, s) => sum + (Number(s.grandTotal) || 0), 0),
+              totalDueVolume: live.customers.reduce((sum, c) => sum + (Number(c.currentDue) || 0), 0),
+            },
+            snapshot: {
+              sales: live.sales,
+              purchases: live.purchases,
+              products: live.products,
+              customers: live.customers,
+              suppliers: live.suppliers,
+              accounts: live.accounts,
+              expenses: live.expenses,
+              incomes: live.incomes,
+              paymentRecords: live.paymentRecords,
+              loanParties: live.loanParties,
+              loanRecords: live.loanRecords,
+              stockAdjustments: live.stockAdjustments,
+            },
+          };
+          setResetArchives((prev) => {
+            const next = [emergencyArchive, ...prev].slice(0, 10);
+            try {
+              localStorage.setItem('RM_RESET_ARCHIVES', JSON.stringify(next));
+            } catch (e) {}
+            return next;
+          });
+          setFirestoreDoc('resetArchives', emergencyArchive.id, emergencyArchive).catch(() => {});
+        }
+
+        localStorage.setItem('RM_LAST_RESET_TIMESTAMP', cloudState.lastResetAt);
+        localStorage.setItem('RM_CLEAN_SLATE_MODE', 'true');
+        setProducts([]);
+        setSales([]);
+        setPurchases([]);
+        setCustomers([]);
+        setSuppliers([]);
+        setExpenses([]);
+        setIncomes([]);
+        setPaymentRecords([]);
+        setLoanParties([]);
+        setLoanRecords([]);
+        setStockAdjustments([]);
+        setSalesReturns([]);
+        setDailyClosings([]);
+        const freshCashAcc: Account[] = [
+          {
+            id: 'acc-1',
+            name: 'দোকান ক্যাশ কাউন্টার (Cash Counter)',
+            type: 'cash',
+            balance: 0,
+            isDefault: true,
+          },
+        ];
+        setAccounts(freshCashAcc);
+        try {
+          localStorage.setItem(`${STORAGE_KEY}_products`, JSON.stringify([]));
+          localStorage.setItem(`${STORAGE_KEY}_sales`, JSON.stringify([]));
+          localStorage.setItem(`${STORAGE_KEY}_purchases`, JSON.stringify([]));
+          localStorage.setItem(`${STORAGE_KEY}_customers`, JSON.stringify([]));
+          localStorage.setItem(`${STORAGE_KEY}_suppliers`, JSON.stringify([]));
+          localStorage.setItem(`${STORAGE_KEY}_expenses`, JSON.stringify([]));
+          localStorage.setItem(`${STORAGE_KEY}_incomes`, JSON.stringify([]));
+          localStorage.setItem(`${STORAGE_KEY}_payments`, JSON.stringify([]));
+          localStorage.setItem(`${STORAGE_KEY}_loan_parties`, JSON.stringify([]));
+          localStorage.setItem(`${STORAGE_KEY}_loan_records`, JSON.stringify([]));
+          localStorage.setItem(`${STORAGE_KEY}_stock_adj`, JSON.stringify([]));
+          localStorage.setItem(`${STORAGE_KEY}_accounts`, JSON.stringify(freshCashAcc));
+        } catch (e) {}
       }
-    });
+    );
 
     // Fallback timer so offline / non-Firebase sessions still reconcile local data
     const hydrationFallbackTimer = setTimeout(() => {
@@ -978,6 +1309,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       unsubLoanParties();
       unsubLoanRecords();
       unsubPayments();
+      unsubArchives();
       unsubUsers();
       unsubProfile();
       unsubSystemState();
@@ -1046,6 +1378,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         expenseCategories,
         countries,
       });
+      if (sales.length > 0 || purchases.length > 0 || products.length > 0 || customers.length > 0) {
+        clearCleanSlateAndMarkActive(true);
+      }
       localStorage.setItem('RM_FIRESTORE_INITIAL_SYNCED', 'true');
       setCloudSyncStatus((prev) => ({
         ...prev,
@@ -1343,6 +1678,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       createdAt: now,
       updatedAt: now,
     };
+    clearCleanSlateAndMarkActive();
     setProducts((prev) => [newProduct, ...prev]);
     setFirestoreDoc('products', newProduct.id, newProduct);
     addAuditLog('PRODUCT_CREATED', 'Inventory', `Added product ${newProduct.name} (SKU: ${newProduct.sku})`);
@@ -1416,6 +1752,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       id: 'cust-' + Date.now(),
       createdAt: new Date().toISOString(),
     };
+    clearCleanSlateAndMarkActive();
     setCustomers((prev) => [newCust, ...prev]);
     setFirestoreDoc('customers', newCust.id, newCust);
     addAuditLog('CUSTOMER_CREATED', 'Customers', `Added customer ${newCust.name} (${newCust.phone})`);
@@ -1453,6 +1790,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       id: 'sup-' + Date.now(),
       createdAt: new Date().toISOString(),
     };
+    clearCleanSlateAndMarkActive();
     setSuppliers((prev) => [newSup, ...prev]);
     setFirestoreDoc('suppliers', newSup.id, newSup);
     addAuditLog('SUPPLIER_CREATED', 'Suppliers', `Added supplier ${newSup.name} (${newSup.companyName})`);
@@ -1486,6 +1824,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Accounts
   const addAccount = (accData: Omit<Account, 'id'>) => {
     const newAcc: Account = { ...accData, id: 'acc-' + Date.now() };
+    clearCleanSlateAndMarkActive();
     setAccounts((prev) => [...prev, newAcc]);
     setFirestoreDoc('accounts', newAcc.id, newAcc);
     addAuditLog('ACCOUNT_CREATED', 'Accounts', `Added account ${newAcc.name}`);
@@ -1574,6 +1913,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updateAccount(targetAccount.id, { balance: targetAccount.balance - expenseData.amount });
     }
 
+    clearCleanSlateAndMarkActive();
     setExpenses((prev) => [newExpense, ...prev]);
     setFirestoreDoc('expenses', newExpense.id, newExpense);
 
@@ -1730,8 +2070,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // 1. Calculate total cost for profit calculation
     let totalCost = 0;
-    saleData.items.forEach((item) => {
-      totalCost += item.costPrice * item.quantity;
+    const safeSaleItems = Array.isArray(saleData.items) ? saleData.items : [];
+    safeSaleItems.forEach((item) => {
+      totalCost += (Number(item.costPrice) || 0) * (Number(item.quantity) || 0);
     });
     const grossProfit = saleData.grandTotal - totalCost;
 
@@ -1816,7 +2157,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setBusinessProfile(nextProf);
     setFirestoreDoc('settings', 'businessProfile', nextProf);
 
-    // 6. Record sale
+    // 6. Record sale & mark system active
+    clearCleanSlateAndMarkActive();
     setSales((prev) => [newSale, ...prev]);
     setFirestoreDoc('sales', newSale.id, newSale);
     setSelectedInvoice(newSale);
@@ -1852,14 +2194,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // 1. Revert previous inventory deductions for existing items
     const oldQtyMap: { [productId: string]: number } = {};
-    existingSale.items.forEach((it) => {
-      oldQtyMap[it.productId] = (oldQtyMap[it.productId] || 0) + it.quantity;
+    (existingSale.items || []).forEach((it) => {
+      oldQtyMap[it.productId] = (oldQtyMap[it.productId] || 0) + (Number(it.quantity) || 0);
     });
 
     // 2. Calculate new inventory quantities
     const newQtyMap: { [productId: string]: number } = {};
-    updatedData.items.forEach((it) => {
-      newQtyMap[it.productId] = (newQtyMap[it.productId] || 0) + it.quantity;
+    (updatedData.items || []).forEach((it) => {
+      newQtyMap[it.productId] = (newQtyMap[it.productId] || 0) + (Number(it.quantity) || 0);
     });
 
     // Apply net stock diff: stock = stock + oldQty - newQty
@@ -1925,7 +2267,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     // 5. Calculate cost & profit and preserve allocated payment tracking
-    const totalCost = updatedData.items.reduce((sum, item) => sum + item.quantity * (item.costPrice || 0), 0);
+    const totalCost = (updatedData.items || []).reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.costPrice) || 0), 0);
     const grossProfit = Math.max(0, updatedData.grandTotal - totalCost);
 
     const custPaymentsForSale = paymentRecords.filter(
@@ -1984,7 +2326,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // 1. Rollback inventory
     setProducts((prev) =>
       prev.map((p) => {
-        const item = sale.items.find((i) => i.productId === p.id);
+        const item = (sale.items || []).find((i) => i.productId === p.id);
         if (item) {
           const nextStock = p.currentStock + item.quantity;
           const updatedP = { ...p, currentStock: nextStock };
@@ -2152,6 +2494,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setFirestoreDoc('settings', 'businessProfile', nextProf);
 
     // 5. Record purchase
+    clearCleanSlateAndMarkActive();
     setPurchases((prev) => [newPurchase, ...prev]);
     setFirestoreDoc('purchases', newPurchase.id, newPurchase);
 
@@ -2310,6 +2653,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
     }
 
+    clearCleanSlateAndMarkActive();
     setPaymentRecords((prev) => [record, ...prev]);
     setFirestoreDoc('paymentRecords', record.id, record);
 
@@ -2508,7 +2852,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     // UPDATE THE ORIGINAL SALE WITH ADJUSTED ITEMS, TOTALS & RETURN BADGE
-    const updatedSaleItems = sale.items.map((item) => {
+    const updatedSaleItems = (sale.items || []).map((item) => {
       const returned = items.find((ret) => ret.productId === item.productId);
       if (returned) {
         const remainingQty = Math.max(0, item.quantity - returned.quantity);
@@ -2987,32 +3331,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     let todayGrossProfit = 0;
 
     sales.forEach((s) => {
-      if (s.date.startsWith(todayStr)) {
-        todaySales += s.grandTotal;
+      if ((s.date || '').startsWith(todayStr)) {
+        todaySales += Number(s.grandTotal) || 0;
         const custPays = paymentRecords.filter(
           (pr) => pr.type === 'customer_collection' && pr.partyId === s.customerId
         );
         todayCollection += getSaleUpfrontPaid(s, custPays);
-        todayGrossProfit += s.grossProfit;
+        todayGrossProfit += Number(s.grossProfit) || 0;
       }
     });
 
     // Also add payments received today from previous dues
     paymentRecords.forEach((pr) => {
-      if (pr.date.startsWith(todayStr) && pr.type === 'customer_collection') {
-        todayCollection += pr.amount;
+      if ((pr.date || '').startsWith(todayStr) && pr.type === 'customer_collection') {
+        todayCollection += Number(pr.amount) || 0;
       }
     });
 
     purchases.forEach((p) => {
-      if (p.date.startsWith(todayStr)) {
-        todayPurchases += p.grandTotal;
+      if ((p.date || '').startsWith(todayStr)) {
+        todayPurchases += Number(p.grandTotal) || 0;
       }
     });
 
     expenses.forEach((e) => {
-      if (e.date.startsWith(todayStr)) {
-        todayExpenses += e.amount;
+      if ((e.date || '').startsWith(todayStr)) {
+        todayExpenses += Number(e.amount) || 0;
       }
     });
 
@@ -3086,6 +3430,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const importBackup = (jsonString: string): boolean => {
     try {
       const data = JSON.parse(jsonString);
+      clearCleanSlateAndMarkActive(true);
       if (data.businessProfile) setBusinessProfile(data.businessProfile);
       if (data.users) setUsers(data.users);
       if (data.categories) setCategories(data.categories);
@@ -3096,10 +3441,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (data.customers) setCustomers(data.customers);
       if (data.suppliers) setSuppliers(data.suppliers);
       if (data.accounts) setAccounts(data.accounts);
-      if (data.sales) setSales(data.sales);
-      if (data.purchases) setPurchases(data.purchases);
-      if (data.paymentRecords) setPaymentRecords(data.paymentRecords);
-      if (data.expenses) setExpenses(data.expenses);
+      if (data.sales) setSales(Array.isArray(data.sales) ? data.sales.map(normalizeSale) : []);
+      if (data.purchases) setPurchases(Array.isArray(data.purchases) ? data.purchases.map(normalizePurchase) : []);
+      if (data.paymentRecords) setPaymentRecords(Array.isArray(data.paymentRecords) ? data.paymentRecords.map(normalizePaymentRecord) : []);
+      if (data.expenses) setExpenses(Array.isArray(data.expenses) ? data.expenses.map(normalizeExpense) : []);
+      if (data.incomes) setIncomes(data.incomes);
+      if (data.stockAdjustments) setStockAdjustments(data.stockAdjustments);
       if (data.auditLogs) setAuditLogs(data.auditLogs);
       if (data.loanParties) setLoanParties(data.loanParties);
       if (data.loanRecords) setLoanRecords(data.loanRecords);
@@ -3114,6 +3461,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const resetToCleanFreshData = () => {
+    systemStateClearedForActiveDataRef.current = false;
+
     // 0. Automatically create a restorable snapshot archive before wiping if there was active data
     if (sales.length > 0 || purchases.length > 0 || products.length > 0 || customers.length > 0 || expenses.length > 0) {
       const archiveItem: ResetArchive = {
@@ -3133,8 +3482,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           expensesCount: expenses.length,
           incomesCount: incomes.length,
           paymentRecordsCount: paymentRecords.length,
-          totalSalesVolume: sales.reduce((sum, s) => sum + s.grandTotal, 0),
-          totalDueVolume: customers.reduce((sum, c) => sum + (c.currentDue || 0), 0),
+          totalSalesVolume: sales.reduce((sum, s) => sum + (Number(s.grandTotal) || 0), 0),
+          totalDueVolume: customers.reduce((sum, c) => sum + (Number(c.currentDue) || 0), 0),
         },
         snapshot: {
           sales,
@@ -3153,13 +3502,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       };
       setResetArchives((prev) => {
         const next = [archiveItem, ...prev].slice(0, 10);
-        localStorage.setItem('RM_RESET_ARCHIVES', JSON.stringify(next));
+        try {
+          localStorage.setItem('RM_RESET_ARCHIVES', JSON.stringify(next));
+        } catch (e) {}
         return next;
       });
+      setFirestoreDoc('resetArchives', archiveItem.id, archiveItem).catch(() => {});
     }
 
     // 1. Preserve current organization profile and all user accounts!
-    // The user's account and users list remain 100% intact.
     const preservedProfile = businessProfile;
     const preservedUsers = users;
     const preservedCurrentUser = currentUser || users[0] || initialUsers[0];
@@ -3182,7 +3533,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setDailyClosings([]);
 
     // 3. Reset Cash & Bank: ONLY 1 default Cash Counter at 0 balance!
-    // All dummy demo banks (Islami Bank, City Bank, bKash, Nagad) are completely removed.
     const freshZeroAccounts: Account[] = [
       {
         id: 'acc-1',
@@ -3231,7 +3581,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // 5. Clean up Firestore: clear operational collections and purge dummy demo accounts
     const nowIso = new Date().toISOString();
     localStorage.setItem('RM_LAST_RESET_TIMESTAMP', nowIso);
-    setFirestoreDoc('settings', 'systemState', { lastResetAt: nowIso }).catch(() => {});
+    setFirestoreDoc('settings', 'systemState', { lastResetAt: nowIso, activeDataSince: null }).catch(() => {});
 
     clearFirestoreCollection('products').catch(() => {});
     clearFirestoreCollection('sales').catch(() => {});
@@ -3261,13 +3611,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const restoreFromArchive = async (archiveId: string): Promise<boolean> => {
     const archive = resetArchives.find((a) => a.id === archiveId);
-    if (!archive) return false;
+    if (!archive || !archive.snapshot) return false;
     try {
-      if (archive.snapshot) {
-        importBackup(JSON.stringify(archive.snapshot));
-        return true;
-      }
-      return false;
+      const snap = archive.snapshot;
+      const ok = importBackup(JSON.stringify(snap));
+      if (!ok) return false;
+
+      clearCleanSlateAndMarkActive(true);
+      await bulkSyncFirestore({
+        products: snap.products || products,
+        customers: snap.customers || customers,
+        suppliers: snap.suppliers || suppliers,
+        accounts: snap.accounts || accounts,
+        sales: Array.isArray(snap.sales) ? snap.sales.map(normalizeSale) : sales,
+        purchases: Array.isArray(snap.purchases) ? snap.purchases.map(normalizePurchase) : purchases,
+        expenses: Array.isArray(snap.expenses) ? snap.expenses.map(normalizeExpense) : expenses,
+        incomes: snap.incomes || incomes,
+        stockAdjustments: snap.stockAdjustments || stockAdjustments,
+        loanParties: snap.loanParties || loanParties,
+        loanRecords: snap.loanRecords || loanRecords,
+        paymentRecords: Array.isArray(snap.paymentRecords) ? snap.paymentRecords.map(normalizePaymentRecord) : paymentRecords,
+        businessProfile,
+        users,
+        categories,
+        brands,
+        paymentMethods,
+        expenseCategories,
+        countries,
+      });
+      addAuditLog('ARCHIVE_RESTORED', 'Recovery', `Restored archive snapshot from ${new Date(archive.timestamp).toLocaleString()}`);
+      return true;
     } catch {
       return false;
     }
@@ -3276,9 +3649,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteArchive = (archiveId: string) => {
     setResetArchives((prev) => {
       const next = prev.filter((a) => a.id !== archiveId);
-      localStorage.setItem('RM_RESET_ARCHIVES', JSON.stringify(next));
+      try {
+        localStorage.setItem('RM_RESET_ARCHIVES', JSON.stringify(next));
+      } catch (e) {}
       return next;
     });
+    deleteFirestoreDoc('resetArchives', archiveId).catch(() => {});
   };
 
   const updateUser = (updatedUser: User) => {

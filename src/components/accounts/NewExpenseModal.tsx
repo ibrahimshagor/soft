@@ -30,7 +30,7 @@ export const NewExpenseModal: React.FC<NewExpenseModalProps> = ({
 
   useEffect(() => {
     if (editingExpense) {
-      setDate(editingExpense.date.slice(0, 10));
+      setDate((editingExpense.date || new Date().toISOString()).slice(0, 10));
       setCategoryId(editingExpense.categoryId || expenseCategories[0]?.id || '');
       setAmount(editingExpense.amount || 0);
       setAccountId(editingExpense.accountId || initialAccountId || accounts[0]?.id || '');

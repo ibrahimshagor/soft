@@ -79,7 +79,7 @@ const AccountStatementModalContent: React.FC<{
 
     // 2. Filter by time
     list = list.filter((tx) => {
-      const txDate = tx.date.slice(0, 10);
+      const txDate = (tx.date || '').slice(0, 10);
 
       if (timeFilter === 'today') {
         return txDate === todayStr;

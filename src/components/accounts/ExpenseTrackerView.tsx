@@ -69,17 +69,18 @@ export const ExpenseTrackerView: React.FC = () => {
         return false;
       }
       // Time match
-      if (timeFilter === 'TODAY' && !exp.date.startsWith(todayStr)) {
+      const expDate = exp.date || '';
+      if (timeFilter === 'TODAY' && !expDate.startsWith(todayStr)) {
         return false;
       }
-      if (timeFilter === 'THIS_MONTH' && !exp.date.startsWith(thisMonthPrefix)) {
+      if (timeFilter === 'THIS_MONTH' && !expDate.startsWith(thisMonthPrefix)) {
         return false;
       }
       // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchDesc = exp.description.toLowerCase().includes(q);
-        const matchCat = exp.categoryName.toLowerCase().includes(q);
+        const matchDesc = (exp.description || '').toLowerCase().includes(q);
+        const matchCat = (exp.categoryName || '').toLowerCase().includes(q);
         const matchPayee = (exp.payee || '').toLowerCase().includes(q);
         const matchVoucher = (exp.voucherNo || '').toLowerCase().includes(q);
         return matchDesc || matchCat || matchPayee || matchVoucher;
@@ -97,16 +98,16 @@ export const ExpenseTrackerView: React.FC = () => {
 
   const thisMonthExpenses = useMemo(() => {
     const prefix = new Date().toISOString().slice(0, 7);
-    return expenses
-      .filter((e) => e.date.startsWith(prefix))
-      .reduce((sum, e) => sum + e.amount, 0);
+    return (expenses || [])
+      .filter((e) => (e.date || '').startsWith(prefix))
+      .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   }, [expenses]);
 
   const todayExpenses = useMemo(() => {
     const prefix = new Date().toISOString().slice(0, 10);
-    return expenses
-      .filter((e) => e.date.startsWith(prefix))
-      .reduce((sum, e) => sum + e.amount, 0);
+    return (expenses || [])
+      .filter((e) => (e.date || '').startsWith(prefix))
+      .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   }, [expenses]);
 
   // Category breakdown

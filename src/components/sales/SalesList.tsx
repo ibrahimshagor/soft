@@ -18,6 +18,9 @@ import {
   Calendar,
   Layers,
   FileText,
+  RefreshCw,
+  Settings,
+  DatabaseBackup,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Sale } from '../../types';
@@ -38,7 +41,20 @@ interface SalesListProps {
 }
 
 export const SalesList: React.FC<SalesListProps> = ({ onOpenNewSale }) => {
-  const { sales, businessProfile, setSelectedInvoice, deleteSale, language, t, customers } = useApp();
+  const {
+    sales,
+    businessProfile,
+    setSelectedInvoice,
+    deleteSale,
+    language,
+    t,
+    customers,
+    resetArchives,
+    restoreFromArchive,
+    cloudSyncStatus,
+    testFirestore,
+    setActiveTab,
+  } = useApp();
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PAID' | 'PARTIALLY_PAID' | 'UNPAID'>('ALL');
@@ -46,44 +62,86 @@ export const SalesList: React.FC<SalesListProps> = ({ onOpenNewSale }) => {
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const [confirmDeleteSaleId, setConfirmDeleteSaleId] = useState<string | null>(null);
   const [shareModalSale, setShareModalSale] = useState<Sale | null>(null);
+  const [isRestoringArchive, setIsRestoringArchive] = useState(false);
+  const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
+  const [isTestingCloud, setIsTestingCloud] = useState(false);
+
+  const recoverableArchives = useMemo(() => {
+    return (resetArchives || []).filter(
+      (a) => (a.summary?.salesCount || 0) > 0 || (a.snapshot?.sales?.length || 0) > 0
+    );
+  }, [resetArchives]);
+
+  const handleRestoreLatestArchive = async (archiveId: string) => {
+    setIsRestoringArchive(true);
+    setRecoveryNotice(null);
+    try {
+      const ok = await restoreFromArchive(archiveId);
+      if (ok) {
+        setRecoveryNotice(
+          language === 'bn'
+            ? 'সফলভাবে আর্কাইভ থেকে সকল ইনভয়েস ও সেলের হিস্ট্রি রিকভার এবং ক্লাউডে সিঙ্ক করা হয়েছে!'
+            : 'All invoices and sales history restored from archive and synced to cloud!'
+        );
+      } else {
+        setRecoveryNotice(
+          language === 'bn'
+            ? 'আর্কাইভ রিস্টোর করতে সমস্যা হয়েছে।'
+            : 'Failed to restore archive.'
+        );
+      }
+    } finally {
+      setIsRestoringArchive(false);
+    }
+  };
+
+  const handleRetryCloudSync = async () => {
+    setIsTestingCloud(true);
+    try {
+      await testFirestore();
+    } finally {
+      setIsTestingCloud(false);
+    }
+  };
 
   const filteredSales = useMemo(() => {
-    return sales
+    const q = search.toLowerCase();
+    return (sales || [])
       .filter((s) => {
         const matchSearch =
-          s.invoiceNo.toLowerCase().includes(search.toLowerCase()) ||
-          s.customerName.toLowerCase().includes(search.toLowerCase()) ||
+          (s.invoiceNo || '').toLowerCase().includes(q) ||
+          (s.customerName || '').toLowerCase().includes(q) ||
           (s.customerPhone && s.customerPhone.includes(search)) ||
-          (s.vehicleInfo && s.vehicleInfo.toLowerCase().includes(search.toLowerCase()));
+          (s.vehicleInfo && s.vehicleInfo.toLowerCase().includes(q));
 
         const matchStatus = statusFilter === 'ALL' || s.paymentStatus === statusFilter;
         return matchSearch && matchStatus;
       })
       .sort((a, b) => {
-        const timeA = new Date(a.createdAt || a.date).getTime() || 0;
-        const timeB = new Date(b.createdAt || b.date).getTime() || 0;
+        const timeA = new Date(a.createdAt || a.date || 0).getTime() || 0;
+        const timeB = new Date(b.createdAt || b.date || 0).getTime() || 0;
         return timeB - timeA;
       });
   }, [sales, search, statusFilter]);
 
-  const totalInvoiced = useMemo(() => filteredSales.reduce((sum, s) => sum + s.grandTotal, 0), [filteredSales]);
-  const totalCollected = useMemo(() => filteredSales.reduce((sum, s) => sum + s.paidAmount, 0), [filteredSales]);
-  const totalDue = useMemo(() => filteredSales.reduce((sum, s) => sum + s.dueAmount, 0), [filteredSales]);
+  const totalInvoiced = useMemo(() => filteredSales.reduce((sum, s) => sum + (Number(s.grandTotal) || 0), 0), [filteredSales]);
+  const totalCollected = useMemo(() => filteredSales.reduce((sum, s) => sum + (Number(s.paidAmount) || 0), 0), [filteredSales]);
+  const totalDue = useMemo(() => filteredSales.reduce((sum, s) => sum + (Number(s.dueAmount) || 0), 0), [filteredSales]);
 
   const handleExportCSV = () => {
     const rows = [
       ['Invoice No', 'Date', 'Customer', 'Phone', 'Vehicle', 'Grand Total', 'Paid', 'Due', 'Status', 'Seller'],
       ...filteredSales.map((s) => [
-        s.invoiceNo,
-        formatDate(s.date),
-        s.customerName,
+        s.invoiceNo || '',
+        s.date ? formatDate(s.date) : '',
+        s.customerName || '',
         s.customerPhone || '',
         s.vehicleInfo || '',
-        s.grandTotal,
-        s.paidAmount,
-        s.dueAmount,
-        s.paymentStatus,
-        s.sellerName,
+        Number(s.grandTotal) || 0,
+        Number(s.paidAmount) || 0,
+        Number(s.dueAmount) || 0,
+        s.paymentStatus || 'UNPAID',
+        s.sellerName || '',
       ]),
     ];
     exportToCSV(`RM_Sales_Invoices_${new Date().toISOString().slice(0, 10)}.csv`, rows);
@@ -218,6 +276,97 @@ export const SalesList: React.FC<SalesListProps> = ({ onOpenNewSale }) => {
         </div>
       </div>
 
+      {/* Recovery & Cloud Diagnostic Banner if sales are completely empty */}
+      {recoveryNotice && (
+        <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-bold flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <span>{recoveryNotice}</span>
+        </div>
+      )}
+
+      {sales.length === 0 && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800/80 space-y-3 shadow-xs">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-1 flex-1 min-w-0">
+              <h3 className="text-sm font-black text-slate-900 dark:text-white">
+                {language === 'bn'
+                  ? 'এই মুহূর্তে কোনো ইনভয়েস বা সেলের হিস্ট্রি পাওয়া যাচ্ছে না'
+                  : 'No Sales or Invoice History Found Currently'}
+              </h3>
+              <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                {cloudSyncStatus.error
+                  ? (language === 'bn'
+                      ? `Firebase কানেকশন ত্রুটি: ${cloudSyncStatus.error}`
+                      : `Firebase connection error: ${cloudSyncStatus.error}`)
+                  : (language === 'bn'
+                      ? 'আপনার ব্রাউজার বা বর্তমান ক্লাউড ডাটাবেজে কোনো ইনভয়েস রেকর্ড নেই। যদি পূর্বের ডোমেইনে ডাটা থেকে থাকে, তবে সেটিংস থেকে "সকল ডাটা ক্লাউডে সিঙ্ক" করুন অথবা নিচের আর্কাইভ থেকে পুনরুদ্ধার করুন।'
+                      : 'No invoice records are present locally or in cloud right now. If your data exists on your main domain, run "Sync All to Cloud" in Settings or restore from an archive below.')}
+              </p>
+            </div>
+          </div>
+
+          {recoverableArchives.length > 0 && (
+            <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-slate-700 space-y-2">
+              <div className="text-xs font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <DatabaseBackup className="w-4 h-4 text-emerald-600" />
+                <span>
+                  {language === 'bn'
+                    ? `পাওয়া গেছে: ${recoverableArchives.length}টি সংরক্ষিত ডাটা আর্কাইভ (রিস্টোরযোগ্য)`
+                    : `Found ${recoverableArchives.length} Recoverable Archive Snapshot(s)`}
+                </span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+                <div className="text-[11px] text-slate-600 dark:text-slate-400">
+                  {language === 'bn' ? 'সর্বশেষ ব্যাকআপ:' : 'Latest Snapshot:'}{' '}
+                  <strong className="text-slate-900 dark:text-white">
+                    {formatDateTime(recoverableArchives[0].timestamp)}
+                  </strong>{' '}
+                  •{' '}
+                  <span className="font-bold text-amber-700 dark:text-amber-400">
+                    {recoverableArchives[0].summary?.salesCount ?? recoverableArchives[0].snapshot?.sales?.length ?? 0}{' '}
+                    {language === 'bn' ? 'টি ইনভয়েস' : 'Invoices'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  disabled={isRestoringArchive}
+                  onClick={() => handleRestoreLatestArchive(recoverableArchives[0].id)}
+                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-sm shrink-0"
+                >
+                  <DatabaseBackup className="w-3.5 h-3.5" />
+                  <span>
+                    {isRestoringArchive
+                      ? (language === 'bn' ? 'রিস্টোর হচ্ছে...' : 'Restoring...')
+                      : (language === 'bn' ? 'আর্কাইভ থেকে সব ইনভয়েস ফিরিয়ে আনুন' : 'Restore All Invoices From Archive')}
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <button
+              type="button"
+              disabled={isTestingCloud}
+              onClick={handleRetryCloudSync}
+              className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-1.5"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isTestingCloud ? 'animate-spin' : ''}`} />
+              <span>{language === 'bn' ? 'ক্লাউড ডাটা পুনরায় চেক করুন' : 'Re-check Cloud Sync'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('settings')}
+              className="px-3 py-1.5 rounded-xl bg-slate-900 dark:bg-slate-700 text-white text-xs font-bold hover:bg-slate-800 flex items-center gap-1.5"
+            >
+              <Settings className="w-3.5 h-3.5" />
+              <span>{language === 'bn' ? 'সেটিংস ও ডাটা রিকভারি খুলুন' : 'Open Settings & Recovery'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* MOBILE & TABLET VIEW: Responsive Cards (No Horizontal Scrolling!), Table on Desktop (xl+) */}
       {/* 1. Mobile & Tablet Cards (< xl screens) */}
       <div className="xl:hidden grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -316,7 +465,7 @@ export const SalesList: React.FC<SalesListProps> = ({ onOpenNewSale }) => {
 
               {/* Items Summary */}
               <div className="text-[11px] text-slate-400 flex items-center justify-between px-1">
-                <span>{sale.items.length} {language === 'bn' ? 'টি আইটেম/পার্টস' : 'parts items'}</span>
+                <span>{(Array.isArray(sale.items) ? sale.items : []).length} {language === 'bn' ? 'টি আইটেম/পার্টস' : 'parts items'}</span>
                 {sale.notes && <span className="truncate max-w-[150px] italic">"{sale.notes}"</span>}
               </div>
 
@@ -422,7 +571,7 @@ export const SalesList: React.FC<SalesListProps> = ({ onOpenNewSale }) => {
                       {sale.vehicleInfo || '—'}
                     </td>
                     <td className="py-3 px-3.5 text-center font-semibold text-slate-600 dark:text-slate-400">
-                      {sale.items.length} parts
+                      {(Array.isArray(sale.items) ? sale.items : []).length} parts
                     </td>
                     <td className="py-3 px-3.5 text-right font-black text-slate-900 dark:text-white">
                       {formatBDT(sale.grandTotal)}

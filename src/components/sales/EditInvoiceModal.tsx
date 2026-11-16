@@ -54,7 +54,7 @@ const EditInvoiceModalContent: React.FC<{
   const { products, categories, brands, countries, updateSale, t, language } = useApp();
 
   // Local state initialized with current invoice data
-  const [items, setItems] = useState<SaleItem[]>(() => [...sale.items]);
+  const [items, setItems] = useState<SaleItem[]>(() => (Array.isArray(sale.items) ? [...sale.items] : []));
   const [discountTotal, setDiscountTotal] = useState<number>(sale.discountTotal || 0);
   const [taxAmount, setTaxAmount] = useState<number>(sale.taxAmount || 0);
   const [paidAmount, setPaidAmount] = useState<number>(sale.paidAmount || 0);

@@ -32,7 +32,7 @@ import {
   generateElementAsImageFile,
   downloadFileDirectly,
 } from '../../utils/pdfGenerator';
-import { computeCustomerReconciledTotals } from '../../utils/customerReconciliation';
+import { computeInvoicePreviousDueBreakdown } from '../../utils/customerReconciliation';
 
 interface WhatsAppShareModalProps {
   sale: Sale;
@@ -90,48 +90,21 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
     .filter((s) => s.id !== sale.id && isCustomerMatch(s) && (s.dueAmount || 0) > 0)
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  const totalPreviousDueFromSales = previousSalesWithDue.reduce(
-    (sum, s) => sum + (s.dueAmount || 0),
-    0
+  const {
+    totalPreviousDueFromSales,
+    totalCustomerDueCombined,
+    openingBalanceDue,
+    previousDueItems,
+    appliedPaymentLines,
+    previousDuesSummaryList,
+  } = computeInvoicePreviousDueBreakdown(
+    sale,
+    customerObj,
+    previousSalesWithDue,
+    sales,
+    paymentRecords,
+    loanRecords
   );
-
-  const customerTotalDueInDirectory = customerObj
-    ? computeCustomerReconciledTotals(customerObj, sales, paymentRecords, loanRecords).currentDue
-    : 0;
-  const currentMemoDue = sale.dueAmount || 0;
-
-  const totalCustomerDueCombined = Math.max(
-    customerTotalDueInDirectory,
-    currentMemoDue + totalPreviousDueFromSales
-  );
-
-  const totalPreviousDueCombined = Math.max(0, totalCustomerDueCombined - currentMemoDue);
-  const openingBalanceDue = Math.max(0, totalPreviousDueCombined - totalPreviousDueFromSales);
-  const originalOpeningBalance = openingBalanceDue > 0
-    ? Math.max(customerObj?.openingBalance || 0, openingBalanceDue)
-    : 0;
-  const openingBalancePaid = Math.max(0, originalOpeningBalance - openingBalanceDue);
-
-  const previousDuesSummaryList = [
-    ...previousSalesWithDue.map((p) => ({
-      invoiceNo: p.invoiceNo,
-      date: p.date,
-      grandTotal: p.grandTotal,
-      paidAmount: p.paidAmount,
-      dueAmount: p.dueAmount,
-    })),
-    ...(openingBalanceDue > 0
-      ? [
-          {
-            invoiceNo: 'পূর্ববর্তী হিসাবের জের',
-            date: customerObj?.createdAt || sale.date,
-            grandTotal: originalOpeningBalance,
-            paidAmount: openingBalancePaid,
-            dueAmount: openingBalanceDue,
-          },
-        ]
-      : []),
-  ];
 
   const getMessageText = () => {
     return getWhatsAppInvoiceText(
@@ -139,7 +112,7 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
       sale.invoiceNo,
       sale.date,
       sale.customerName,
-      sale.items,
+      sale.items || [],
       sale.grandTotal,
       sale.paidAmount,
       sale.dueAmount,
@@ -160,7 +133,7 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
       sale.invoiceNo,
       sale.date,
       sale.customerName,
-      sale.items,
+      sale.items || [],
       sale.grandTotal,
       sale.paidAmount,
       sale.dueAmount,
@@ -683,7 +656,7 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-300">
-              {sale.items.map((it, idx) => {
+              {(sale.items || []).map((it, idx) => {
                 const prod = (products || []).find((p) => p.id === it.productId);
                 const code = it.productCode || prod?.productCode;
                 const brand = it.brand || prod?.brand;
@@ -728,94 +701,92 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
           {/* Financial Summary & Previous Dues: Left = Previous Dues + Notes/Terms, Right = Totals */}
           <div className="grid grid-cols-12 gap-3 pt-2.5 border-t-2 border-black text-xs items-start">
             <div className="col-span-7 space-y-2 min-w-0">
-              {/* Dedicated Previous Dues Breakdown Box on Left Side */}
-              <div className="p-2 rounded-lg border-2 border-rose-400 bg-rose-50/40 text-[11px] space-y-1">
-                <div className="flex items-center justify-between pb-1 border-b border-rose-300 font-bold text-rose-950 text-[10.5px]">
-                  <span>কাস্টমারের পূর্বের বকেয়া ইনভয়েসের তালিকা (Previous Due Invoices)</span>
-                  <span className="text-[10px] text-rose-700 font-extrabold shrink-0 ml-1">
-                    {previousSalesWithDue.length > 0 || openingBalanceDue > 0
-                      ? `${previousSalesWithDue.length + (openingBalanceDue > 0 ? 1 : 0)}টি বকেয়া মেমো`
+              {/* Dedicated Previous Dues Breakdown Box on Left Side (White background & Crisp Black text) */}
+              <div className="p-2.5 rounded-lg border-2 border-black bg-white text-[11px] text-black space-y-1.5">
+                <div className="flex items-center justify-between pb-1 border-b-2 border-black font-extrabold text-black text-[11px]">
+                  <span>পূর্বের বকেয়া ও পরিশোধের হিসাব (Previous Dues)</span>
+                  <span className="text-[11px] text-black font-extrabold shrink-0 ml-1">
+                    {previousDueItems.length > 0
+                      ? `${previousDueItems.length}টি হিসাব`
                       : 'পরিশোধিত'}
                   </span>
                 </div>
 
-                {previousSalesWithDue.length > 0 || openingBalanceDue > 0 ? (
+                {previousDueItems.length > 0 ? (
                   <>
-                    <table className="w-full text-left text-[9.5px] text-black">
+                    <table className="w-full text-left text-[11px] text-black">
                       <thead>
-                        <tr className="border-b border-rose-300 text-black uppercase font-bold">
+                        <tr className="border-b border-black text-black font-extrabold">
                           <th className="py-0.5">তারিখ</th>
-                          <th className="py-0.5 px-1">ইনভয়েস #</th>
-                          <th className="py-0.5 px-1 text-right">মোট বিল</th>
-                          <th className="py-0.5 px-1 text-right">পরিশোধ</th>
-                          <th className="py-0.5 text-right">বকেয়া</th>
+                          <th className="py-0.5 px-1.5">বিবরণ / মেমো #</th>
+                          <th className="py-0.5 text-right">টাকা (৳)</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-rose-200">
-                        {previousSalesWithDue.map((prev) => (
-                          <tr key={prev.id} className="text-black">
-                            <td className="py-0.5 text-black font-mono">
-                              {formatDate(prev.date)}
+                      <tbody className="divide-y divide-black/30">
+                        {previousDueItems.map((item) => (
+                          <tr key={item.id} className="text-black">
+                            <td className="py-1 text-black font-mono font-semibold whitespace-nowrap">
+                              {formatDate(item.date)}
                             </td>
-                            <td className="py-0.5 px-1 font-mono font-bold text-black">
-                              #{prev.invoiceNo}
+                            <td className="py-1 px-1.5 font-bold text-black">
+                              {item.label}
                             </td>
-                            <td className="py-0.5 px-1 text-right text-black font-mono">
-                              {formatBDT(prev.grandTotal)}
-                            </td>
-                            <td className="py-0.5 px-1 text-right text-emerald-800 font-mono font-semibold">
-                              {formatBDT(prev.paidAmount)}
-                            </td>
-                            <td className="py-0.5 text-right font-bold text-rose-700 font-mono">
-                              {formatBDT(prev.dueAmount)}
+                            <td className="py-1 text-right font-extrabold text-black font-mono whitespace-nowrap">
+                              {formatBDT(item.amount)}
                             </td>
                           </tr>
                         ))}
-                        {openingBalanceDue > 0 && (
-                          <tr className="text-black">
-                            <td className="py-0.5 text-black font-mono">
-                              {customerObj?.createdAt ? formatDate(customerObj.createdAt) : 'প্রারম্ভিক'}
-                            </td>
-                            <td className="py-0.5 px-1 text-black font-bold">
-                              পূর্বের হিসাব (Opening)
-                            </td>
-                            <td className="py-0.5 px-1 text-right text-black font-mono">
-                              {formatBDT(originalOpeningBalance)}
-                            </td>
-                            <td className="py-0.5 px-1 text-right text-emerald-800 font-mono font-semibold">
-                              {formatBDT(openingBalancePaid)}
-                            </td>
-                            <td className="py-0.5 text-right font-bold text-rose-700 font-mono">
-                              {formatBDT(openingBalanceDue)}
-                            </td>
-                          </tr>
-                        )}
                       </tbody>
                     </table>
 
-                    <div className="pt-1 border-t border-rose-300 flex justify-between text-[10.5px] text-black font-bold">
+                    {appliedPaymentLines.length > 0 && (
+                      <div className="pt-1 border-t border-dashed border-black space-y-0.5">
+                        <div className="text-[10.5px] font-extrabold text-black">
+                          পরিশোধের বিবরণ (Payments Received):
+                        </div>
+                        <table className="w-full text-left text-[11px] text-black">
+                          <tbody className="divide-y divide-black/25">
+                            {appliedPaymentLines.map((pay) => (
+                              <tr key={pay.id} className="text-black">
+                                <td className="py-0.5 text-black font-mono font-semibold whitespace-nowrap">
+                                  {formatDate(pay.date)}
+                                </td>
+                                <td className="py-0.5 px-1.5 font-bold text-black">
+                                  {pay.label}
+                                </td>
+                                <td className="py-0.5 text-right font-extrabold text-black font-mono whitespace-nowrap">
+                                  - {formatBDT(pay.amount)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    <div className="pt-1 border-t border-black flex justify-between text-[11px] text-black font-bold">
                       <span>পূর্বের মোট বকেয়া:</span>
-                      <span className="text-rose-800 font-extrabold">
+                      <span className="text-black font-extrabold font-mono">
                         {formatBDT(totalPreviousDueFromSales + openingBalanceDue)}
                       </span>
                     </div>
 
-                    <div className="flex justify-between text-[10.5px] text-black font-bold">
+                    <div className="flex justify-between text-[11px] text-black font-bold">
                       <span>চলতি মেমোর বকেয়া:</span>
-                      <span className="text-rose-800 font-extrabold">
+                      <span className="text-black font-extrabold font-mono">
                         {formatBDT(sale.dueAmount)}
                       </span>
                     </div>
 
-                    <div className="pt-1 border-t-2 border-rose-400 flex justify-between text-[11px] font-black text-rose-800">
+                    <div className="pt-1 border-t-2 border-black flex justify-between text-xs font-black text-black">
                       <span>সর্বমোট বকেয়া (চলতি + পূর্বের):</span>
-                      <span className="text-xs font-mono">
+                      <span className="text-xs font-mono font-black">
                         {formatBDT(totalCustomerDueCombined)}
                       </span>
                     </div>
                   </>
                 ) : (
-                  <div className="py-0.5 text-center text-[10.5px] font-bold text-emerald-800">
+                  <div className="py-0.5 text-center text-[11px] font-bold text-black">
                     ✓ কাস্টমারের পূর্বের কোনো বকেয়া নেই (No Previous Due)
                   </div>
                 )}

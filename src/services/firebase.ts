@@ -93,6 +93,10 @@ function broadcastError(msg: string) {
 // Automatically ensure anonymous sign-in so Firestore 'request.auth != null' rules are satisfied
 export async function ensureFirebaseAuth(): Promise<FirebaseUser | null> {
   if (currentFirebaseUser) return currentFirebaseUser;
+  if (auth.currentUser) {
+    currentFirebaseUser = auth.currentUser;
+    return currentFirebaseUser;
+  }
   if (authPromise) return authPromise;
 
   authPromise = new Promise((resolve) => {
@@ -113,6 +117,7 @@ export async function ensureFirebaseAuth(): Promise<FirebaseUser | null> {
           } catch (err: any) {
             console.warn('[Firebase Auth] Anonymous sign-in notice:', err.message);
             authListeners.forEach((cb) => cb(null, err.message));
+            authPromise = null;
             unsub();
             resolve(null);
           }
@@ -121,6 +126,7 @@ export async function ensureFirebaseAuth(): Promise<FirebaseUser | null> {
     } catch (e: any) {
       console.warn('[Firebase Auth] Init error:', e);
       authListeners.forEach((cb) => cb(null, e.message));
+      authPromise = null;
       resolve(null);
     }
   });
@@ -178,10 +184,15 @@ export async function clearFirestoreCollection(collectionName: string): Promise<
   }
 }
 
+export interface SnapshotMeta {
+  fromCache: boolean;
+  hasPendingWrites: boolean;
+}
+
 // Real-time listener for a collection with auto-auth and robust reconnection
 export function subscribeToCollection<T extends { id: string }>(
   collectionName: string,
-  onData: (data: T[]) => void,
+  onData: (data: T[], meta?: SnapshotMeta) => void,
   onError?: (err: Error) => void
 ): () => void {
   let unsubSnapshot: (() => void) | null = null;
@@ -201,7 +212,10 @@ export function subscribeToCollection<T extends { id: string }>(
               items.push({ id: docSnap.id, ...(docSnap.data() as any) });
             });
           }
-          onData(items);
+          onData(items, {
+            fromCache: snapshot.metadata.fromCache,
+            hasPendingWrites: snapshot.metadata.hasPendingWrites,
+          });
         },
         async (error) => {
           console.warn(`[Firebase] Snapshot error for ${collectionName}:`, error.message);

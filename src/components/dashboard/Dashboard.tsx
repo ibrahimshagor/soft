@@ -66,13 +66,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
   });
 
   const trendData = last7Days.map((dateStr) => {
-    const daySales = sales
-      .filter((s) => s.date.startsWith(dateStr))
-      .reduce((sum, s) => sum + s.grandTotal, 0);
+    const daySales = (sales || [])
+      .filter((s) => (s.date || '').startsWith(dateStr))
+      .reduce((sum, s) => sum + (Number(s.grandTotal) || 0), 0);
 
-    const dayPurchases = purchases
-      .filter((p) => p.date.startsWith(dateStr))
-      .reduce((sum, p) => sum + p.grandTotal, 0);
+    const dayPurchases = (purchases || [])
+      .filter((p) => (p.date || '').startsWith(dateStr))
+      .reduce((sum, p) => sum + (Number(p.grandTotal) || 0), 0);
 
     const dayLabel = new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' });
     return { date: dateStr, label: dayLabel, sales: daySales, purchases: dayPurchases };

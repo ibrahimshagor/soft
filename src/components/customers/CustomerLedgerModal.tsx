@@ -83,7 +83,7 @@ export const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
       ref: s.invoiceNo,
       debit: s.grandTotal,
       credit: 0,
-      description: `Sales Invoice #${s.invoiceNo} (${s.items.length} items)`,
+      description: `Sales Invoice #${s.invoiceNo} (${(s.items || []).length} items)`,
     });
     const rawUpfront = getSaleUpfrontPaid(s, custPayments);
     const upfrontPaid = Math.min(rawUpfront, remainingUpfrontBudget);

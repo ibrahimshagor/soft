@@ -60,7 +60,7 @@ export const SupplierLedgerModal: React.FC<SupplierLedgerModalProps> = ({
       ref: p.purchaseNo,
       payable: p.grandTotal,
       paid: 0,
-      description: `Purchase Bill #${p.purchaseNo} (${p.items.length} parts)`,
+      description: `Purchase Bill #${p.purchaseNo} (${(p.items || []).length} parts)`,
     });
     if (p.paidAmount > 0) {
       rows.push({

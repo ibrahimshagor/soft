@@ -38,7 +38,7 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({ sale, onClos
     total: number;
   }[] = [];
 
-  sale.items.forEach((item) => {
+  (sale.items || []).forEach((item) => {
     const qty = returnItems[item.productId] || 0;
     if (qty > 0) {
       const lineTotal = qty * item.sellingPrice;
@@ -101,7 +101,7 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({ sale, onClos
             </label>
 
             <div className="space-y-2 max-h-48 overflow-y-auto">
-              {sale.items.map((item) => (
+              {(sale.items || []).map((item) => (
                 <div
                   key={item.productId}
                   className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3"

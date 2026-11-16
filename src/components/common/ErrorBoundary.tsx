@@ -34,13 +34,14 @@ export class ErrorBoundary extends Component<Props, State> {
       const users = localStorage.getItem('RM_AUTOMANAGE_STORAGE_V1_users');
       const curUser = localStorage.getItem('RM_AUTOMANAGE_STORAGE_V1_current_user_id');
       const archives = localStorage.getItem('RM_RESET_ARCHIVES');
+      const lastResetTs = localStorage.getItem('RM_LAST_RESET_TIMESTAMP');
       localStorage.clear();
       sessionStorage.clear();
       if (profile) localStorage.setItem('RM_AUTOMANAGE_STORAGE_V1_profile', profile);
       if (users) localStorage.setItem('RM_AUTOMANAGE_STORAGE_V1_users', users);
       if (curUser) localStorage.setItem('RM_AUTOMANAGE_STORAGE_V1_current_user_id', curUser);
       if (archives) localStorage.setItem('RM_RESET_ARCHIVES', archives);
-      localStorage.setItem('RM_CLEAN_SLATE_MODE', 'true');
+      if (lastResetTs) localStorage.setItem('RM_LAST_RESET_TIMESTAMP', lastResetTs);
     } catch (e) {
       console.error(e);
     }
