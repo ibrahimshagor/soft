@@ -534,14 +534,13 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
           return `
         <tr>
           <td>
-            <div style="font-weight: bold;">${item.productName}</div>
-            <div style="font-size: 9px; color: #444;">
+            <div style="font-weight: bold; color: #000;">${item.productName}</div>
+            <div style="font-size: 9px; color: #000;">
               ${[
                 partCode ? `Code: ${partCode}` : '',
                 brandName ? `Brand: ${brandName}` : '',
                 originName ? `Origin: ${originName}` : '',
                 `[${conditionName}]`,
-                item.sku ? `SKU: ${item.sku}` : '',
               ]
                 .filter(Boolean)
                 .join(' | ')}
@@ -605,7 +604,7 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
   <div class="center" style="font-size: 9px; margin-top: 6px;">
     <p>Thank you for your business!<br>আমাদের সাথে কেনাকাটার জন্য আন্তরিক ধন্যবাদ!</p>
     <p>${businessProfile.invoiceNotes || 'Goods returnable within 7 days in original packaging with cash memo. (বিক্রিত মাল মূল প্যাকেটে ৭ দিনের মধ্যে পরিবর্তনযোগ্য)'}</p>
-    <p style="margin-top: 4px; color: #555;">Powered by TIKMERK IT</p>
+    <p style="margin-top: 4px; color: #000;">Powered by TIKMERK IT</p>
   </div>
 </body>
 </html>`;
@@ -618,42 +617,44 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cash_Memo_${sale.invoiceNo}_${businessProfile.businessName}</title>
   <style>
-    @page { size: A4; margin: 12mm; }
+    @page { size: A4; margin: 8mm 10mm; }
     * { box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; padding: 24px; color: #0f172a; max-width: 820px; margin: 0 auto; background: #fff; font-size: 13px; line-height: 1.4; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f172a; padding-bottom: 16px; gap: 16px; }
-    .logo-box { display: flex; align-items: center; gap: 12px; }
-    .logo-img { width: 56px; height: 56px; object-fit: contain; border-radius: 8px; border: 1px solid #e2e8f0; }
-    .title { font-size: 24px; font-weight: 900; color: #0f172a; line-height: 1.1; }
-    .tagline { font-size: 12px; color: #64748b; margin-top: 2px; }
-    .contact-info { font-size: 11px; color: #475569; margin-top: 4px; line-height: 1.4; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; padding: 14px; color: #000000; max-width: 820px; margin: 0 auto; background: #fff; font-size: 12px; line-height: 1.35; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000000; padding-bottom: 10px; gap: 14px; }
+    .logo-box { display: flex; align-items: center; gap: 10px; }
+    .logo-img { width: 48px; height: 48px; object-fit: contain; border-radius: 6px; border: 1px solid #000000; }
+    .title { font-size: 22px; font-weight: 900; color: #000000; line-height: 1.1; }
+    .tagline { font-size: 11px; color: #000000; margin-top: 2px; }
+    .contact-info { font-size: 10.5px; color: #000000; margin-top: 3px; line-height: 1.35; }
     .memo-badge { text-align: right; }
-    .memo-tag { font-size: 13px; font-weight: 800; color: #d97706; text-transform: uppercase; letter-spacing: 0.5px; }
-    .invoice-num { font-size: 20px; font-weight: 900; font-family: monospace; color: #0f172a; }
-    .status-badge { display: inline-block; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 800; margin-top: 4px; text-transform: uppercase; border: 1px solid currentColor; }
-    .status-paid { color: #059669; background: #ecfdf5; border-color: #a7f3d0; }
-    .status-due { color: #dc2626; background: #fef2f2; border-color: #fecaca; }
-    .status-part { color: #d97706; background: #fffbeb; border-color: #fde68a; }
-    .info-grid { display: flex; justify-content: space-between; gap: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-top: 16px; font-size: 12px; }
-    .info-label { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
-    .table-wrapper { width: 100%; overflow-x: auto; margin-top: 16px; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    th { background: #0f172a; color: #fff; padding: 8px 10px; text-align: left; font-weight: 700; font-size: 11px; text-transform: uppercase; }
-    td { border-bottom: 1px solid #e2e8f0; padding: 8px 10px; }
+    .memo-tag { font-size: 12px; font-weight: 800; color: #b45309; text-transform: uppercase; letter-spacing: 0.5px; }
+    .invoice-num { font-size: 18px; font-weight: 900; font-family: monospace; color: #000000; }
+    .status-badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 800; margin-top: 3px; text-transform: uppercase; border: 1px solid currentColor; }
+    .status-paid { color: #047857; background: #ecfdf5; border-color: #047857; }
+    .status-due { color: #b91c1c; background: #fef2f2; border-color: #b91c1c; }
+    .status-part { color: #b45309; background: #fffbeb; border-color: #b45309; }
+    .info-grid { display: flex; justify-content: space-between; gap: 16px; background: #ffffff; border: 1px solid #000000; border-radius: 6px; padding: 8px 12px; margin-top: 10px; font-size: 11.5px; color: #000000; }
+    .info-label { font-size: 10px; font-weight: 800; color: #000000; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
+    .table-wrapper { width: 100%; overflow-x: auto; margin-top: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 11.5px; color: #000000; }
+    th { background: #0f172a; color: #fff; padding: 6px 8px; text-align: left; font-weight: 700; font-size: 10.5px; text-transform: uppercase; }
+    td { border-bottom: 1px solid #cbd5e1; padding: 5px 8px; color: #000000; vertical-align: top; }
     .text-right { text-align: right; }
     .text-center { text-align: center; }
-    .totals-area { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-top: 16px; }
-    .remarks-box { flex: 1; font-size: 11px; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; }
-    .totals-card { width: 280px; font-size: 12px; }
-    .totals-row { display: flex; justify-content: space-between; padding: 4px 0; color: #475569; }
-    .totals-grand { font-size: 15px; font-weight: 900; color: #0f172a; border-top: 2px solid #0f172a; border-bottom: 2px solid #0f172a; padding: 6px 0; margin: 4px 0; }
-    .totals-paid { font-weight: 700; color: #059669; }
-    .totals-due { font-weight: 800; color: #dc2626; }
-    .footer-signatures { display: flex; justify-content: space-between; margin-top: 48px; padding-top: 12px; font-size: 11px; color: #64748b; }
-    .sig-block { text-align: center; width: 180px; border-top: 1px solid #94a3b8; padding-top: 4px; font-weight: 600; color: #1e293b; }
-    .terms-text { margin-top: 20px; font-size: 10px; color: #64748b; border-top: 1px dashed #cbd5e1; padding-top: 8px; text-align: center; }
+    .totals-area { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-top: 10px; page-break-inside: avoid; }
+    .left-summary-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+    .remarks-box { margin-top: 8px; width: 100%; font-size: 9.5px; color: #000000; background: #ffffff; border: 1px solid #000000; border-radius: 6px; padding: 6px 10px; line-height: 1.35; page-break-inside: avoid; }
+    .totals-card { width: 245px; flex-shrink: 0; font-size: 11.5px; color: #000000; }
+    .totals-row { display: flex; justify-content: space-between; padding: 3px 0; color: #000000; }
+    .totals-grand { font-size: 14px; font-weight: 900; color: #000000; border-top: 2px solid #000000; border-bottom: 2px solid #000000; padding: 4px 0; margin: 3px 0; }
+    .totals-paid { font-weight: 800; color: #047857; }
+    .totals-due { font-weight: 900; color: #b91c1c; }
+    .footer-signatures { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 10px; padding-top: 22px; border-top: 1px solid #000000; font-size: 10.5px; color: #000000; page-break-inside: avoid; }
+    .sig-block { text-align: center; width: 195px; color: #000000; }
+    .sig-title-line { border-bottom: 1px solid #000000; padding-bottom: 2px; margin-bottom: 2px; font-weight: 700; font-size: 11px; color: #000000; }
+    .terms-text { margin-top: 8px; font-size: 9.5px; color: #000000; border-top: 1px solid #000000; padding-top: 5px; text-align: center; }
     @media print {
-      body { padding: 0; }
+      body { padding: 0; color: #000000; }
       .no-print-area { display: none; }
     }
   </style>
@@ -664,7 +665,7 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
       ${businessProfile.logoUrl ? `<img src="${businessProfile.logoUrl}" class="logo-img" alt="Logo" />` : ''}
       <div>
         <div class="title">${businessProfile.businessName}</div>
-        ${businessProfile.ownerName ? `<div style="font-size: 13px; font-weight: bold; color: #1e293b; margin-top: 1px;">${businessProfile.proprietorTitle || 'স্বত্বাধিকারী'}: ${businessProfile.ownerName}</div>` : ''}
+        ${businessProfile.ownerName ? `<div style="font-size: 12.5px; font-weight: 800; color: #000000; margin-top: 1px;">${businessProfile.proprietorTitle || 'স্বত্বাধিকারী'}: ${businessProfile.ownerName}</div>` : ''}
         <div class="tagline">${businessProfile.tagline || 'Automobile Parts & Engine Spares'}</div>
         <div class="contact-info">
           📍 ${businessProfile.address}<br>
@@ -678,7 +679,7 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
     <div class="memo-badge">
       <div class="memo-tag">ক্যাশ মেমো / CASH MEMO</div>
       <div class="invoice-num">#${sale.invoiceNo}</div>
-      <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Date: ${new Date(sale.date).toLocaleDateString('en-GB')}</div>
+      <div style="font-size: 11px; color: #000000; font-weight: 600; margin-top: 2px;">Date: ${new Date(sale.date).toLocaleDateString('en-GB')}</div>
       <div class="status-badge ${sale.paymentStatus === 'PAID' ? 'status-paid' : sale.paymentStatus === 'PARTIALLY_PAID' ? 'status-part' : 'status-due'}">
         ${sale.paymentStatus}
       </div>
@@ -688,15 +689,15 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
   <div class="info-grid">
     <div>
       <div class="info-label">Customer / Billed To:</div>
-      <strong style="font-size: 13px; color: #0f172a;">${sale.customerName}</strong><br>
-      ${sale.customerPhone ? `<span>Phone: ${sale.customerPhone}</span><br>` : ''}
-      ${customerObj?.address ? `<span>Address: ${customerObj.address}</span>` : ''}
+      <strong style="font-size: 17px; font-weight: 900; color: #000000; display: inline-block; margin-bottom: 1px;">${sale.customerName}</strong><br>
+      ${sale.customerPhone ? `<span style="color: #000000; font-weight: 600;">Phone: ${sale.customerPhone}</span><br>` : ''}
+      ${customerObj?.address ? `<span style="color: #000000;">Address: ${customerObj.address}</span>` : ''}
     </div>
     <div style="text-align: right;">
       <div class="info-label">Vehicle & Served By:</div>
-      ${sale.vehicleInfo ? `<strong>Vehicle: ${sale.vehicleInfo}</strong><br>` : '<span>Over the counter sale</span><br>'}
-      <span>Served By: ${sale.sellerName === 'Engr. Rezaul Karim' ? (businessProfile.ownerName || 'আব্দুর রহিম রনি') : (sale.sellerName || 'আব্দুর রহিম রনি')}</span>
-      ${sale.dueDate && sale.dueAmount > 0 ? `<br><strong style="color: #dc2626;">Payment Due Date: ${new Date(sale.dueDate).toLocaleDateString('en-GB')}</strong>` : ''}
+      ${sale.vehicleInfo ? `<strong style="color: #000000;">Vehicle: ${sale.vehicleInfo}</strong><br>` : '<span style="color: #000000;">Over the counter sale</span><br>'}
+      <span style="color: #000000;">Served By: ${sale.sellerName === 'Engr. Rezaul Karim' ? (businessProfile.ownerName || 'আব্দুর রহিম রনি') : (sale.sellerName || 'আব্দুর রহিম রনি')}</span>
+      ${sale.dueDate && sale.dueAmount > 0 ? `<br><strong style="color: #b91c1c;">Payment Due Date: ${new Date(sale.dueDate).toLocaleDateString('en-GB')}</strong>` : ''}
     </div>
   </div>
 
@@ -704,12 +705,11 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
     <table>
       <thead>
         <tr>
-          <th style="width: 32px;" class="text-center">#</th>
+          <th style="width: 30px;" class="text-center">#</th>
           <th>Part Description & Details</th>
-          <th style="width: 100px;">SKU</th>
           <th style="width: 65px;" class="text-center">Qty</th>
-          <th style="width: 95px;" class="text-right">Unit Price</th>
-          <th style="width: 105px;" class="text-right">Total (৳)</th>
+          <th style="width: 90px;" class="text-right">Unit Price</th>
+          <th style="width: 100px;" class="text-right">Total (৳)</th>
         </tr>
       </thead>
       <tbody>
@@ -723,22 +723,21 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
 
             return `
           <tr>
-            <td class="text-center" style="color: #64748b;">${idx + 1}</td>
+            <td class="text-center" style="color: #000000; font-weight: 700;">${idx + 1}</td>
             <td>
-              <strong style="font-size: 13px;">${it.productName}</strong>
-              <div style="font-size: 11px; color: #334155; margin-top: 3px; display: flex; flex-wrap: wrap; gap: 6px;">
-                ${partCode ? `<span style="background: #eff6ff; color: #1d4ed8; padding: 1px 6px; border-radius: 4px; font-weight: 700; border: 1px solid #bfdbfe;">কোড: ${partCode}</span>` : ''}
-                ${brandName ? `<span style="background: #f8fafc; color: #0f172a; padding: 1px 6px; border-radius: 4px; border: 1px solid #cbd5e1;">ব্র্যান্ড: <strong>${brandName}</strong></span>` : ''}
-                ${originName ? `<span style="background: #f8fafc; color: #0f172a; padding: 1px 6px; border-radius: 4px; border: 1px solid #cbd5e1;">অরিজিন: <strong>${originName}</strong></span>` : ''}
-                <span style="font-weight: 700; color: ${conditionName.toLowerCase() === 'new' ? '#047857' : '#b45309'}; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; border: 1px solid #e2e8f0; text-transform: uppercase;">কন্ডিশন: [${conditionName}]</span>
-                ${it.category ? `<span style="color: #64748b; padding: 1px 4px;">(${it.category})</span>` : ''}
-                ${it.vehicleModel ? `<span style="color: #64748b; font-style: italic;">• ${it.vehicleModel}</span>` : ''}
+              <strong style="font-size: 12px; color: #000000;">${it.productName}</strong>
+              <div style="font-size: 10px; color: #000000; margin-top: 2px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center;">
+                ${partCode ? `<span style="background: #eff6ff; color: #1e40af; padding: 0px 5px; border-radius: 3px; font-weight: 700; border: 1px solid #93c5fd;">কোড: ${partCode}</span>` : ''}
+                ${brandName ? `<span style="background: #ffffff; color: #000000; padding: 0px 5px; border-radius: 3px; border: 1px solid #000000;">ব্র্যান্ড: <strong>${brandName}</strong></span>` : ''}
+                ${originName ? `<span style="background: #ffffff; color: #000000; padding: 0px 5px; border-radius: 3px; border: 1px solid #000000;">অরিজিন: <strong>${originName}</strong></span>` : ''}
+                <span style="font-weight: 700; color: ${conditionName.toLowerCase() === 'new' ? '#065f46' : '#92400e'}; background: #ffffff; padding: 0px 5px; border-radius: 3px; border: 1px solid #000000; text-transform: uppercase;">[${conditionName}]</span>
+                ${it.category ? `<span style="color: #000000; padding: 0px 3px;">(${it.category})</span>` : ''}
+                ${it.vehicleModel ? `<span style="color: #000000; font-style: italic;">• ${it.vehicleModel}</span>` : ''}
               </div>
             </td>
-            <td style="font-family: monospace; color: #64748b; font-weight: 600;">${it.sku}</td>
-            <td class="text-center" style="font-weight: 600;">${it.quantity} ${it.unit}</td>
-            <td class="text-right">৳ ${(it.sellingPrice ?? it.unitPrice ?? 0).toLocaleString()}</td>
-            <td class="text-right"><strong>৳ ${it.total.toLocaleString()}</strong></td>
+            <td class="text-center" style="font-weight: 700; color: #000000;">${it.quantity} ${it.unit}</td>
+            <td class="text-right" style="color: #000000;">৳ ${(it.sellingPrice ?? it.unitPrice ?? 0).toLocaleString()}</td>
+            <td class="text-right" style="color: #000000;"><strong>৳ ${it.total.toLocaleString()}</strong></td>
           </tr>
         `;
           })
@@ -748,92 +747,95 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
   </div>
 
   <div class="totals-area">
-    <div class="remarks-box">
-      ${sale.notes ? `<strong>Notes / Remarks (মন্তব্য):</strong> ${sale.notes}<br><br>` : ''}
-      <strong>Terms & Conditions (বিক্রয় ও ওয়ারেন্টি শর্তাবলী):</strong><br>
-      ${businessProfile.invoiceNotes || 'Sold goods are non-refundable after 7 days and must be accompanied by the original cash memo. Electrical & sensor parts carry no replacement warranty once installed. (বিক্রিত মাল মূল অক্ষত প্যাকেটে ক্যাশ মেমোসহ ৭ দিনের মধ্যে পরিবর্তনযোগ্য। ইলেকট্রিক ও সেন্সর পার্টস ফিটিং করার পর কোনো ওয়ারেন্টি বা ফেরত প্রযোজ্য নয়।)'}
-    </div>
-
-    <div class="totals-card">
-      <div class="totals-row"><span>Subtotal (মোট বিল):</span> <span>৳ ${sale.subtotal.toLocaleString()}</span></div>
-      ${sale.discountTotal > 0 ? `<div class="totals-row" style="color: #059669;"><span>Discount (ছাড়):</span> <span>- ৳ ${sale.discountTotal.toLocaleString()}</span></div>` : ''}
-      ${sale.deliveryCharge && sale.deliveryCharge > 0 ? `<div class="totals-row" style="color: #2563eb;"><span>Delivery (ডেলিভারি খরচ):</span> <span>+ ৳ ${sale.deliveryCharge.toLocaleString()}</span></div>` : ''}
-      ${sale.taxAmount > 0 ? `<div class="totals-row"><span>Tax / VAT (ভ্যাট):</span> <span>+ ৳ ${sale.taxAmount.toLocaleString()}</span></div>` : ''}
-      ${sale.isAdjustedAfterReturn ? `
-        <div class="totals-row" style="color: #64748b; font-size: 11px;"><span>Original Total (পূর্ববর্তী মোট):</span> <span>৳ ${(sale.originalGrandTotal || sale.grandTotal).toLocaleString()}</span></div>
-        <div class="totals-row" style="color: #dc2626; font-weight: bold; font-size: 11px;"><span>Return Deductions (পণ্য ফেরত সমন্বয়):</span> <span>- ৳ ${(sale.returnedAmount || 0).toLocaleString()}</span></div>
-      ` : ''}
-      <div class="totals-grand totals-row"><span>${sale.isAdjustedAfterReturn ? 'Adjusted Net Bill (সমন্বিত মোট):' : 'Grand Total (সর্বমোট বিল):'}</span> <span>৳ ${sale.grandTotal.toLocaleString()}</span></div>
-      <div class="totals-row totals-paid"><span>Paid Amount (পরিশোধ):</span> <span>৳ ${sale.paidAmount.toLocaleString()}</span></div>
-      <div class="totals-row totals-due" style="font-size: 13px;"><span>Remaining Due (চলতি মেমোর বকেয়া):</span> <span>৳ ${sale.dueAmount.toLocaleString()}</span></div>
-
-      <!-- Space and Previous Dues Ledger Breakdown Box -->
-      <div style="margin-top: 14px; border: 1.5px solid #f87171; background: #fffaf0; border-radius: 8px; padding: 8px 10px; font-size: 11px;">
-        <div style="font-weight: 800; color: #991b1b; border-bottom: 1px dashed #fca5a5; padding-bottom: 4px; margin-bottom: 6px; display: flex; justify-content: space-between;">
+    <div class="left-summary-col">
+      <!-- Previous Dues Ledger Breakdown Box on the Left Side -->
+      <div style="border: 1.5px solid #dc2626; background: #fffaf0; border-radius: 6px; padding: 6px 8px; font-size: 10px; color: #000000;">
+        <div style="font-weight: 800; color: #7f1d1d; border-bottom: 1px dashed #dc2626; padding-bottom: 3px; margin-bottom: 4px; display: flex; justify-content: space-between; gap: 6px;">
           <span>কাস্টমারের পূর্বের বকেয়া ইনভয়েসের তালিকা (Previous Due Invoices)</span>
-          <span>${previousSalesWithDue.length > 0 || openingBalanceDue > 0 ? `${previousSalesWithDue.length + (openingBalanceDue > 0 ? 1 : 0)}টি বকেয়া মেমো` : ''}</span>
+          <span>${previousSalesWithDue.length > 0 || openingBalanceDue > 0 ? `${previousSalesWithDue.length + (openingBalanceDue > 0 ? 1 : 0)}টি বকেয়া মেমো` : 'পরিশোধিত'}</span>
         </div>
 
         ${previousSalesWithDue.length > 0 || openingBalanceDue > 0 ? `
-          <table style="width: 100%; border-collapse: collapse; font-size: 10.5px; margin-bottom: 6px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 9.5px; margin-bottom: 4px; color: #000000;">
             <thead>
-              <tr style="border-bottom: 1px solid #fecaca; color: #7f1d1d; text-align: left;">
-                <th style="padding: 2px 0;">তারিখ (Date)</th>
-                <th style="padding: 2px 4px;">ইনভয়েস নং (Invoice #)</th>
-                <th style="padding: 2px 4px; text-align: right;">মোট বিল</th>
-                <th style="padding: 2px 4px; text-align: right;">পরিশোধ</th>
-                <th style="padding: 2px 0; text-align: right;">বকেয়া (Due)</th>
+              <tr style="border-bottom: 1px solid #fca5a5; color: #000000; text-align: left;">
+                <th style="background: transparent; color: #000000; padding: 2px 0; font-size: 9.5px;">তারিখ</th>
+                <th style="background: transparent; color: #000000; padding: 2px 4px; font-size: 9.5px;">ইনভয়েস #</th>
+                <th style="background: transparent; color: #000000; padding: 2px 4px; text-align: right; font-size: 9.5px;">মোট বিল</th>
+                <th style="background: transparent; color: #000000; padding: 2px 4px; text-align: right; font-size: 9.5px;">পরিশোধ</th>
+                <th style="background: transparent; color: #000000; padding: 2px 0; text-align: right; font-size: 9.5px;">বকেয়া</th>
               </tr>
             </thead>
             <tbody>
               ${previousSalesWithDue.map(prev => `
-                <tr style="border-bottom: 1px dotted #fee2e2; color: #374151;">
-                  <td style="padding: 3px 0;">${new Date(prev.date).toLocaleDateString('en-GB')}</td>
-                  <td style="padding: 3px 4px; font-family: monospace; font-weight: bold;">#${prev.invoiceNo}</td>
-                  <td style="padding: 3px 4px; text-align: right; color: #4b5563;">৳ ${prev.grandTotal.toLocaleString()}</td>
-                  <td style="padding: 3px 4px; text-align: right; color: #15803d;">৳ ${prev.paidAmount.toLocaleString()}</td>
-                  <td style="padding: 3px 0; text-align: right; font-weight: bold; color: #dc2626;">৳ ${prev.dueAmount.toLocaleString()}</td>
+                <tr style="border-bottom: 1px dotted #fca5a5; color: #000000;">
+                  <td style="padding: 2px 0; color: #000000;">${new Date(prev.date).toLocaleDateString('en-GB')}</td>
+                  <td style="padding: 2px 4px; font-family: monospace; font-weight: bold; color: #000000;">#${prev.invoiceNo}</td>
+                  <td style="padding: 2px 4px; text-align: right; color: #000000;">৳ ${prev.grandTotal.toLocaleString()}</td>
+                  <td style="padding: 2px 4px; text-align: right; color: #047857; font-weight: 600;">৳ ${prev.paidAmount.toLocaleString()}</td>
+                  <td style="padding: 2px 0; text-align: right; font-weight: bold; color: #b91c1c;">৳ ${prev.dueAmount.toLocaleString()}</td>
                 </tr>
               `).join('')}
               ${openingBalanceDue > 0 ? `
-                <tr style="border-bottom: 1px dotted #fee2e2; color: #374151;">
-                  <td style="padding: 3px 0;">প্রারম্ভিক হিসাব</td>
-                  <td style="padding: 3px 4px;" colspan="3">প্রারম্ভিক হিসাবের বকেয়া (Account Opening Due)</td>
-                  <td style="padding: 3px 0; text-align: right; font-weight: bold; color: #dc2626;">৳ ${openingBalanceDue.toLocaleString()}</td>
+                <tr style="border-bottom: 1px dotted #fca5a5; color: #000000;">
+                  <td style="padding: 2px 0; color: #000000;">প্রারম্ভিক হিসাব</td>
+                  <td style="padding: 2px 4px; color: #000000;" colspan="3">প্রারম্ভিক হিসাবের বকেয়া (Account Opening Due)</td>
+                  <td style="padding: 2px 0; text-align: right; font-weight: bold; color: #b91c1c;">৳ ${openingBalanceDue.toLocaleString()}</td>
                 </tr>
               ` : ''}
             </tbody>
           </table>
-          <div style="display: flex; justify-content: space-between; font-weight: 700; color: #991b1b; padding-top: 2px;">
+          <div style="display: flex; justify-content: space-between; font-weight: 700; color: #000000; padding-top: 2px;">
             <span>পূর্বের মোট বকেয়া:</span>
-            <span>৳ ${(totalPreviousDueFromSales + openingBalanceDue).toLocaleString()}</span>
+            <span style="color: #7f1d1d;">৳ ${(totalPreviousDueFromSales + openingBalanceDue).toLocaleString()}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; font-weight: 700; color: #991b1b; padding-top: 2px;">
+          <div style="display: flex; justify-content: space-between; font-weight: 700; color: #000000; padding-top: 1px;">
             <span>চলতি মেমোর বকেয়া:</span>
-            <span>৳ ${sale.dueAmount.toLocaleString()}</span>
+            <span style="color: #7f1d1d;">৳ ${sale.dueAmount.toLocaleString()}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 12px; color: #b91c1c; border-top: 1.5px solid #f87171; margin-top: 4px; padding-top: 4px;">
-            <span>সর্বমোট বকেয়া (চলতি + পূর্বের বকেয়া):</span>
+          <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 11px; color: #991b1b; border-top: 1.5px solid #dc2626; margin-top: 3px; padding-top: 3px;">
+            <span>সর্বমোট বকেয়া (চলতি + পূর্বের):</span>
             <span>৳ ${totalCustomerDueCombined.toLocaleString()}</span>
           </div>
         ` : `
-          <div style="color: #15803d; font-weight: 600; text-align: center; padding: 4px 0;">
+          <div style="color: #065f46; font-weight: 700; text-align: center; padding: 2px 0;">
             ✓ পূর্বে কোনো বকেয়া নেই (No Previous Due)
           </div>
         `}
       </div>
     </div>
+
+    <div class="totals-card">
+      <div class="totals-row"><span>Subtotal (মোট বিল):</span> <strong>৳ ${sale.subtotal.toLocaleString()}</strong></div>
+      ${sale.discountTotal > 0 ? `<div class="totals-row" style="color: #047857; font-weight: 700;"><span>Discount (ছাড়):</span> <span>- ৳ ${sale.discountTotal.toLocaleString()}</span></div>` : ''}
+      ${sale.deliveryCharge && sale.deliveryCharge > 0 ? `<div class="totals-row" style="color: #1d4ed8; font-weight: 700;"><span>Delivery (ডেলিভারি খরচ):</span> <span>+ ৳ ${sale.deliveryCharge.toLocaleString()}</span></div>` : ''}
+      ${sale.taxAmount > 0 ? `<div class="totals-row"><span>Tax / VAT (ভ্যাট):</span> <span>+ ৳ ${sale.taxAmount.toLocaleString()}</span></div>` : ''}
+      ${sale.isAdjustedAfterReturn ? `
+        <div class="totals-row" style="color: #000000; font-size: 10.5px;"><span>Original Total (পূর্ববর্তী মোট):</span> <span>৳ ${(sale.originalGrandTotal || sale.grandTotal).toLocaleString()}</span></div>
+        <div class="totals-row" style="color: #b91c1c; font-weight: bold; font-size: 10.5px;"><span>Return Deductions (পণ্য ফেরত সমন্বয়):</span> <span>- ৳ ${(sale.returnedAmount || 0).toLocaleString()}</span></div>
+      ` : ''}
+      <div class="totals-grand totals-row"><span>${sale.isAdjustedAfterReturn ? 'Adjusted Net Bill:' : 'Grand Total (সর্বমোট বিল):'}</span> <span>৳ ${sale.grandTotal.toLocaleString()}</span></div>
+      <div class="totals-row totals-paid"><span>Paid Amount (পরিশোধ):</span> <span>৳ ${sale.paidAmount.toLocaleString()}</span></div>
+      <div class="totals-row totals-due" style="font-size: 12.5px;"><span>Remaining Due (চলতি বকেয়া):</span> <span>৳ ${sale.dueAmount.toLocaleString()}</span></div>
+    </div>
+  </div>
+
+  <!-- Full-width Remarks & Terms & Conditions Box -->
+  <div class="remarks-box">
+    ${sale.notes ? `<strong>Notes / Remarks (মন্তব্য):</strong> ${sale.notes}<br>` : ''}
+    <strong>শর্তাবলী (Terms & Conditions):</strong>
+    ${businessProfile.invoiceNotes || 'Sold goods are non-refundable after 7 days and must be accompanied by the original cash memo. Electrical & sensor parts carry no replacement warranty once installed. (বিক্রিত মাল মূল অক্ষত প্যাকেটে ক্যাশ মেমোসহ ৭ দিনের মধ্যে পরিবর্তনযোগ্য। ইলেকট্রিক ও সেন্সর পার্টস ফিটিং করার পর কোনো ওয়ারেন্টি বা ফেরত প্রযোজ্য নয়।)'}
   </div>
 
   <div class="footer-signatures">
     <div class="sig-block">
-      Customer Acceptance (গ্রাহক স্বাক্ষর)<br>
-      <span style="font-size: 9px; font-weight: normal; color: #94a3b8;">Received goods in good order</span>
+      <div class="sig-title-line">Customer Acceptance (গ্রাহক স্বাক্ষর)</div>
+      <span style="font-size: 9px; font-weight: 600; color: #000000; display: block;">Received goods in good order</span>
     </div>
     <div class="sig-block">
-      ${businessProfile.showSignatureOnInvoice !== false && businessProfile.signatureUrl ? `<img src="${businessProfile.signatureUrl}" style="height: 38px; max-width: 140px; margin: 0 auto 2px; display: block; object-fit: contain;" alt="Signature" />` : ''}
-      <div style="font-size: 11px; font-weight: bold; color: #0f172a;">${businessProfile.ownerName ? `${businessProfile.proprietorTitle || 'স্বত্বাধিকারী'}: ${businessProfile.ownerName}` : (businessProfile.invoiceSignatureLabel || 'স্বত্বাধিকারী / Authorized Signature')}</div>
-      <span style="font-size: 10px; font-weight: bold; color: #475569;">${businessProfile.businessName}</span>
+      ${businessProfile.showSignatureOnInvoice !== false && businessProfile.signatureUrl ? `<img src="${businessProfile.signatureUrl}" style="height: 36px; max-width: 140px; margin: 0 auto 2px; display: block; object-fit: contain;" alt="Signature" />` : ''}
+      <div class="sig-title-line">${businessProfile.ownerName ? `${businessProfile.proprietorTitle || 'স্বত্বাধিকারী'}: ${businessProfile.ownerName}` : (businessProfile.invoiceSignatureLabel || 'স্বত্বাধিকারী / Authorized Signature')}</div>
+      <span style="font-size: 10px; font-weight: bold; color: #000000; display: block;">${businessProfile.businessName}</span>
     </div>
   </div>
 
@@ -1049,18 +1051,18 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
 
         {/* Invoice Printable Document Body */}
         <div className="flex-1 overflow-y-auto p-2 sm:p-6 bg-slate-100/60 dark:bg-slate-950/60 print:p-0 print:bg-white">
-          <div ref={printableInvoiceRef} className="bg-white text-slate-900 rounded-xl shadow-xs print:shadow-none print:rounded-none">
+          <div ref={printableInvoiceRef} className="bg-white text-black rounded-xl shadow-xs print:shadow-none print:rounded-none">
           {printFormat === 'a4' ? (
             /* ================= STANDARD A4 INVOICE FORMAT ================= */
-            <div className="max-w-2xl mx-auto bg-white text-slate-900 p-3 sm:p-8 rounded-xl border border-slate-200 dark:border-slate-800 print:border-none print:shadow-none print:p-0">
+            <div className="max-w-3xl mx-auto bg-white text-black p-3 sm:p-5 rounded-xl border border-slate-300 print:border-none print:shadow-none print:p-0">
               {/* Header: Shop Branding */}
-              <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4 pb-4 sm:pb-6 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex flex-col sm:flex-row print:flex-row items-start justify-between gap-2.5 sm:gap-4 pb-3 border-b-2 border-black">
                 <div className="flex items-start gap-2.5 sm:gap-3">
                   {businessProfile.logoUrl ? (
                     <img
                       src={businessProfile.logoUrl}
                       alt={businessProfile.businessName}
-                      className="w-10 h-10 sm:w-14 sm:h-14 object-contain rounded-lg border border-slate-200 shrink-0"
+                      className="w-10 h-10 sm:w-12 sm:h-12 object-contain rounded-lg border border-black shrink-0"
                     />
                   ) : (
                     <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-slate-900 text-amber-500 flex items-center justify-center font-black shrink-0">
@@ -1069,53 +1071,53 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
                   )}
 
                   <div className="min-w-0">
-                    <h1 className="text-base sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+                    <h1 className="text-base sm:text-xl font-black tracking-tight text-black leading-tight">
                       {businessProfile.businessName}
                     </h1>
                     {businessProfile.ownerName && (
-                      <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 mt-0.5">
+                      <p className="text-xs sm:text-[13px] font-bold text-black mt-0.5">
                         {businessProfile.proprietorTitle || 'স্বত্বাধিকারী'}: {businessProfile.ownerName}
                       </p>
                     )}
-                    <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 max-w-sm mt-0.5">
+                    <p className="text-[10.5px] sm:text-[11px] text-black max-w-md mt-0.5 leading-snug">
                       {businessProfile.address}
                     </p>
-                    <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex flex-wrap gap-x-2 sm:gap-x-3">
+                    <div className="text-[10px] sm:text-[10.5px] text-black font-medium mt-0.5 flex flex-wrap gap-x-2 sm:gap-x-3">
                       <span>📞 {businessProfile.phone}</span>
                       <span>💬 WA: {businessProfile.whatsappNumber}</span>
                       {businessProfile.email && <span>✉️ {businessProfile.email}</span>}
                     </div>
                     {businessProfile.binVat && (
-                      <div className="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">
+                      <div className="text-[9px] sm:text-[10px] text-black mt-0.5">
                         BIN / VAT: {businessProfile.binVat} • Trade Lic: {businessProfile.tradeLicense}
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="text-left sm:text-right w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
-                  <div className={`text-[10px] sm:text-xs font-bold uppercase tracking-widest ${
-                    sale.isAdjustedAfterReturn ? 'text-rose-600 dark:text-rose-400 font-black' : 'text-amber-600 dark:text-amber-400'
+                <div className="text-left sm:text-right print:text-right w-full sm:w-auto print:w-auto pt-2 sm:pt-0 print:pt-0 border-t sm:border-t-0 print:border-t-0 border-black shrink-0">
+                  <div className={`text-[10px] sm:text-xs font-extrabold uppercase tracking-widest ${
+                    sale.isAdjustedAfterReturn ? 'text-rose-700 font-black' : 'text-amber-700'
                   }`}>
                     {sale.isAdjustedAfterReturn
                       ? (language === 'bn' ? 'সংশোধিত ইনভয়েস (ফেরত সমন্বিত)' : 'ADJUSTED CASH MEMO')
                       : 'CASH MEMO / INVOICE'}
                   </div>
-                  <div className="text-base sm:text-lg font-black font-mono mt-0.5 text-slate-900 dark:text-white">
+                  <div className="text-base sm:text-lg font-black font-mono mt-0.5 text-black">
                     #{sale.invoiceNo}
                   </div>
-                  <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5">
+                  <div className="text-[10px] sm:text-[11px] text-black font-semibold mt-0.5">
                     Date: {formatDateTime(sale.date)}
                   </div>
-                  <div className="mt-1.5">{getStatusBadge(sale.paymentStatus)}</div>
+                  <div className="mt-1">{getStatusBadge(sale.paymentStatus)}</div>
                 </div>
               </div>
 
               {/* Return Adjustment Banner if adjusted */}
               {sale.isAdjustedAfterReturn && (
-                <div className="my-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200 font-bold">
-                    <RotateCcw className="w-4 h-4 text-rose-500 shrink-0" />
+                <div className="my-2 p-2 rounded-lg bg-amber-50 border border-amber-400 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 text-black font-bold">
+                    <RotateCcw className="w-4 h-4 text-rose-600 shrink-0" />
                     <span>
                       {language === 'bn'
                         ? `পণ্য ফেরত সমন্বয় সম্পন্ন: -${formatBDT(sale.returnedAmount || 0)} টাকা বিল থেকে বাদ দেওয়া হয়েছে`
@@ -1123,7 +1125,7 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
                     </span>
                   </div>
                   {sale.lastAdjustedAt && (
-                    <span className="text-[10px] font-mono text-slate-500">
+                    <span className="text-[10px] font-mono text-black font-semibold">
                       {formatDate(sale.lastAdjustedAt)}
                     </span>
                   )}
@@ -1131,39 +1133,39 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
               )}
 
               {/* Customer & Vehicle Info Bar */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 py-3 sm:py-4 border-b border-slate-200 dark:border-slate-800 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-2.5 sm:gap-4 py-2.5 border-b border-black text-xs">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+                  <span className="text-[10px] font-extrabold text-black uppercase tracking-wider block mb-0.5">
                     Billed To (Customer):
                   </span>
-                  <div className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white">
+                  <div className="font-black text-base sm:text-lg text-black leading-tight">
                     {sale.customerName}
                   </div>
                   {sale.customerPhone && (
-                    <div className="text-slate-500 mt-0.5">Phone: {sale.customerPhone}</div>
+                    <div className="text-black font-semibold mt-0.5">Phone: {sale.customerPhone}</div>
                   )}
                   {customerObj?.address && (
-                    <div className="text-slate-400 mt-0.5">{customerObj.address}</div>
+                    <div className="text-black mt-0.5">{customerObj.address}</div>
                   )}
                 </div>
 
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+                <div className="sm:text-right print:text-right">
+                  <span className="text-[10px] font-extrabold text-black uppercase tracking-wider block mb-0.5">
                     Vehicle Details & Salesman:
                   </span>
                   {sale.vehicleInfo ? (
-                    <div className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1">
-                      <Car className="w-3.5 h-3.5 text-amber-500" />
+                    <div className="font-bold text-black flex items-center sm:justify-end print:justify-end gap-1">
+                      <Car className="w-3.5 h-3.5 text-amber-600" />
                       <span>{sale.vehicleInfo}</span>
                     </div>
                   ) : (
-                    <div className="text-slate-400">General Automobile Over-the-counter</div>
+                    <div className="text-black font-medium">General Automobile Over-the-counter</div>
                   )}
-                  <div className="text-slate-500 mt-0.5">
+                  <div className="text-black font-medium mt-0.5">
                     Served By: {sale.sellerName === 'Engr. Rezaul Karim' ? (businessProfile.ownerName || 'আব্দুর রহিম রনি') : (sale.sellerName || 'আব্দুর রহিম রনি')}
                   </div>
                   {sale.dueDate && sale.dueAmount > 0 && (
-                    <div className="text-rose-600 font-bold mt-1">
+                    <div className="text-rose-700 font-bold mt-0.5">
                       Due Payment Date: {formatDate(sale.dueDate)}
                     </div>
                   )}
@@ -1171,18 +1173,18 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
               </div>
 
               {/* Itemized Table - responsive container */}
-              <div className="py-3 sm:py-4 overflow-x-auto">
+              <div className="py-2 overflow-x-auto">
                 <table className="w-full min-w-[340px] text-left text-xs">
                   <thead>
-                    <tr className="border-b-2 border-slate-900 dark:border-slate-100 text-[10px] sm:text-[11px] font-black uppercase">
-                      <th className="py-2 px-1">#</th>
-                      <th className="py-2 px-2">Part Description</th>
-                      <th className="py-2 px-1 text-center">Qty</th>
-                      <th className="py-2 px-2 text-right">Unit Price</th>
-                      <th className="py-2 px-2 text-right">Total</th>
+                    <tr className="border-b-2 border-black text-[10px] sm:text-[11px] font-black uppercase text-black">
+                      <th className="py-1.5 px-1 w-7 text-center">#</th>
+                      <th className="py-1.5 px-2">Part Description</th>
+                      <th className="py-1.5 px-1 text-center w-16">Qty</th>
+                      <th className="py-1.5 px-2 text-right w-24">Unit Price</th>
+                      <th className="py-1.5 px-2 text-right w-24">Total</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-300">
                     {sale.items.map((item, idx) => {
                       const prod = (products || []).find((p) => p.id === item.productId);
                       const partCode = item.productCode || prod?.productCode;
@@ -1191,53 +1193,52 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
                       const conditionName = item.condition || prod?.condition || 'New';
 
                       return (
-                        <tr key={idx} className="py-2">
-                          <td className="py-2 px-1 text-slate-400 text-[11px]">{idx + 1}</td>
-                          <td className="py-2 px-2">
-                            <div className="font-bold text-slate-900 dark:text-white text-[11px] sm:text-xs">
+                        <tr key={idx}>
+                          <td className="py-1.5 px-1 text-center text-black font-bold text-[11px] align-top">{idx + 1}</td>
+                          <td className="py-1.5 px-2 align-top">
+                            <div className="font-bold text-black text-[11.5px] sm:text-xs leading-snug">
                               {item.productName}
                             </div>
-                            <div className="flex items-center gap-1.5 flex-wrap text-[9px] sm:text-[10px] text-slate-600 dark:text-slate-300 mt-1">
+                            <div className="flex items-center gap-1 flex-wrap text-[9.5px] text-black mt-0.5 leading-tight">
                               {partCode && (
-                                <span className="px-1.5 py-0.5 rounded font-mono font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                <span className="px-1 py-0.2 rounded font-mono font-bold bg-blue-50 text-blue-800 border border-blue-300">
                                   কোড: {partCode}
                                 </span>
                               )}
                               {brandName && (
-                                <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+                                <span className="px-1 py-0.2 rounded bg-white font-semibold text-black border border-black">
                                   ব্র্যান্ড: {brandName}
                                 </span>
                               )}
                               {originName && (
-                                <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+                                <span className="px-1 py-0.2 rounded bg-white font-semibold text-black border border-black">
                                   অরিজিন: {originName}
                                 </span>
                               )}
                               <span
-                                className={`px-1.5 py-0.5 rounded font-bold uppercase border ${
+                                className={`px-1 py-0.2 rounded font-bold uppercase border border-black ${
                                   conditionName.toLowerCase() === 'new'
-                                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                                    : 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                                    ? 'bg-emerald-50 text-emerald-800'
+                                    : 'bg-amber-50 text-amber-800'
                                 }`}
                               >
                                 [{conditionName}]
                               </span>
-                              <span className="font-mono text-slate-400">SKU: {item.sku}</span>
                               {item.category && (
-                                <span className="text-slate-400 italic">({item.category})</span>
+                                <span className="text-black font-medium italic">({item.category})</span>
                               )}
                               {item.vehicleModel && (
-                                <span className="italic text-slate-400">• {item.vehicleModel}</span>
+                                <span className="italic text-black font-medium">• {item.vehicleModel}</span>
                               )}
                             </div>
                           </td>
-                          <td className="py-2 px-1 text-center font-semibold text-[11px] whitespace-nowrap">
+                          <td className="py-1.5 px-1 text-center font-bold text-black text-[11px] whitespace-nowrap align-top">
                             {item.quantity} {item.unit}
                           </td>
-                          <td className="py-2 px-2 text-right text-slate-600 dark:text-slate-300 text-[11px] whitespace-nowrap">
+                          <td className="py-1.5 px-2 text-right text-black font-medium text-[11px] whitespace-nowrap align-top">
                             {formatBDT(item.sellingPrice)}
                           </td>
-                          <td className="py-2 px-2 text-right font-bold text-slate-900 dark:text-white text-[11px] whitespace-nowrap">
+                          <td className="py-1.5 px-2 text-right font-bold text-black text-[11px] whitespace-nowrap align-top">
                             {formatBDT(item.total)}
                           </td>
                         </tr>
@@ -1247,80 +1248,15 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
                 </table>
               </div>
 
-              {/* Financial Summary & Calculations */}
-              <div className="pt-4 border-t-2 border-slate-900 dark:border-slate-100 flex flex-col sm:flex-row justify-between gap-6 text-xs">
-                <div className="space-y-2 sm:max-w-xs">
-                  {sale.notes && (
-                    <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px]">
-                      <span className="font-bold text-slate-700 dark:text-slate-300 block">
-                        Remarks / মন্তব্য:
-                      </span>
-                      <span className="text-slate-600 dark:text-slate-400">{sale.notes}</span>
-                    </div>
-                  )}
-
-                  <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-[10px] leading-relaxed text-slate-600 dark:text-slate-400">
-                    <span className="font-bold text-slate-800 dark:text-slate-200 block mb-0.5">
-                      শর্তাবলী (Terms & Conditions):
-                    </span>
-                    <span>
-                      {businessProfile.invoiceNotes ||
-                        'Sold goods are non-refundable after 7 days and must be accompanied by the original cash memo. Electrical & sensor parts carry no replacement warranty once installed. (বিক্রিত মাল মূল অক্ষত প্যাকেটে ক্যাশ মেমোসহ ৭ দিনের মধ্যে পরিবর্তনযোগ্য। ইলেকট্রিক ও সেন্সর পার্টস ফিটিং করার পর কোনো ওয়ারেন্টি বা ফেরত প্রযোজ্য নয়।)'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="w-full sm:w-72 space-y-1.5">
-                  <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                    <span>Subtotal:</span>
-                    <span className="font-semibold text-slate-900 dark:text-white">
-                      {formatBDT(sale.subtotal)}
-                    </span>
-                  </div>
-
-                  {sale.discountTotal > 0 && (
-                    <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-                      <span>Discount:</span>
-                      <span className="font-semibold">- {formatBDT(sale.discountTotal)}</span>
-                    </div>
-                  )}
-
-                  {sale.deliveryCharge && sale.deliveryCharge > 0 ? (
-                    <div className="flex justify-between text-blue-600 dark:text-blue-400">
-                      <span>Delivery Charge:</span>
-                      <span className="font-semibold">+ {formatBDT(sale.deliveryCharge)}</span>
-                    </div>
-                  ) : null}
-
-                  {sale.taxAmount > 0 && (
-                    <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                      <span>VAT / Tax:</span>
-                      <span className="font-semibold">+ {formatBDT(sale.taxAmount)}</span>
-                    </div>
-                  )}
-
-                  <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between font-black text-sm text-slate-900 dark:text-white">
-                    <span>Grand Total:</span>
-                    <span className="text-base text-amber-600 dark:text-amber-400">
-                      {formatBDT(sale.grandTotal)}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-bold">
-                    <span>Paid Amount:</span>
-                    <span>{formatBDT(sale.paidAmount)}</span>
-                  </div>
-
-                  <div className="flex justify-between text-rose-600 dark:text-rose-400 font-black">
-                    <span>Remaining Due (চলতি বকেয়া):</span>
-                    <span>{formatBDT(sale.dueAmount)}</span>
-                  </div>
-
-                  {/* Space and Dedicated Previous Dues Breakdown Box */}
-                  <div className="mt-4 p-3 rounded-xl border-2 border-rose-300 dark:border-rose-800/80 bg-rose-50/60 dark:bg-rose-950/20 text-xs space-y-2">
-                    <div className="flex items-center justify-between pb-1.5 border-b border-rose-200 dark:border-rose-800 font-bold text-rose-900 dark:text-rose-200 text-[11px]">
+              {/* Financial Summary & Calculations: Left = Previous Dues + Notes/Terms, Right = Totals */}
+              <div className="pt-2.5 border-t-2 border-black grid grid-cols-1 sm:grid-cols-12 print:grid-cols-12 gap-3 text-xs items-start">
+                {/* Left Column: Previous Due Invoices Box + Remarks & Terms */}
+                <div className="sm:col-span-7 print:col-span-7 space-y-2 min-w-0">
+                  {/* Dedicated Previous Dues Breakdown Box moved to Left Empty Area */}
+                  <div className="p-2 rounded-lg border-2 border-rose-400 bg-rose-50/40 text-[11px] space-y-1">
+                    <div className="flex items-center justify-between pb-1 border-b border-rose-300 font-bold text-rose-950 text-[10.5px]">
                       <span>কাস্টমারের পূর্বের বকেয়া ইনভয়েসের তালিকা (Previous Due Invoices)</span>
-                      <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">
+                      <span className="text-[10px] text-rose-700 font-extrabold shrink-0 ml-1">
                         {previousSalesWithDue.length > 0 || openingBalanceDue > 0
                           ? `${previousSalesWithDue.length + (openingBalanceDue > 0 ? 1 : 0)}টি বকেয়া মেমো`
                           : 'পরিশোধিত'}
@@ -1330,45 +1266,45 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
                     {previousSalesWithDue.length > 0 || openingBalanceDue > 0 ? (
                       <>
                         <div className="overflow-x-auto">
-                          <table className="w-full text-left text-[10px]">
+                          <table className="w-full text-left text-[9.5px] text-black">
                             <thead>
-                              <tr className="border-b border-rose-200 dark:border-rose-800/60 text-slate-500 dark:text-slate-400 uppercase font-semibold">
-                                <th className="py-1">তারিখ (Date)</th>
-                                <th className="py-1 px-1">ইনভয়েস #</th>
-                                <th className="py-1 px-1 text-right">মোট বিল</th>
-                                <th className="py-1 px-1 text-right">পরিশোধ</th>
-                                <th className="py-1 text-right">বকেয়া (Due)</th>
+                              <tr className="border-b border-rose-300 text-black uppercase font-bold">
+                                <th className="py-0.5">তারিখ</th>
+                                <th className="py-0.5 px-1">ইনভয়েস #</th>
+                                <th className="py-0.5 px-1 text-right">মোট বিল</th>
+                                <th className="py-0.5 px-1 text-right">পরিশোধ</th>
+                                <th className="py-0.5 text-right">বকেয়া</th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-rose-100 dark:divide-rose-900/30">
+                            <tbody className="divide-y divide-rose-200">
                               {previousSalesWithDue.map((prev) => (
-                                <tr key={prev.id} className="py-1 text-slate-800 dark:text-slate-200">
-                                  <td className="py-1 text-slate-600 dark:text-slate-400 font-mono">
+                                <tr key={prev.id} className="text-black">
+                                  <td className="py-0.5 text-black font-mono">
                                     {formatDate(prev.date)}
                                   </td>
-                                  <td className="py-1 px-1 font-mono font-bold text-slate-900 dark:text-white">
+                                  <td className="py-0.5 px-1 font-mono font-bold text-black">
                                     #{prev.invoiceNo}
                                   </td>
-                                  <td className="py-1 px-1 text-right text-slate-600 dark:text-slate-400 font-mono">
+                                  <td className="py-0.5 px-1 text-right text-black font-mono">
                                     {formatBDT(prev.grandTotal)}
                                   </td>
-                                  <td className="py-1 px-1 text-right text-emerald-600 dark:text-emerald-400 font-mono">
+                                  <td className="py-0.5 px-1 text-right text-emerald-800 font-mono font-semibold">
                                     {formatBDT(prev.paidAmount)}
                                   </td>
-                                  <td className="py-1 text-right font-bold text-rose-600 dark:text-rose-400 font-mono">
+                                  <td className="py-0.5 text-right font-bold text-rose-700 font-mono">
                                     {formatBDT(prev.dueAmount)}
                                   </td>
                                 </tr>
                               ))}
                               {openingBalanceDue > 0 && (
-                                <tr className="py-1 text-slate-800 dark:text-slate-200">
-                                  <td className="py-1 text-slate-600 dark:text-slate-400 font-mono">
+                                <tr className="text-black">
+                                  <td className="py-0.5 text-black font-mono">
                                     {customerObj?.createdAt ? formatDate(customerObj.createdAt) : 'প্রারম্ভিক'}
                                   </td>
-                                  <td className="py-1 px-1 font-semibold text-slate-700 dark:text-slate-300" colSpan={3}>
+                                  <td className="py-0.5 px-1 font-semibold text-black" colSpan={3}>
                                     প্রারম্ভিক হিসাবের বকেয়া (Account Opening Due)
                                   </td>
-                                  <td className="py-1 text-right font-bold text-rose-600 dark:text-rose-400 font-mono">
+                                  <td className="py-0.5 text-right font-bold text-rose-700 font-mono">
                                     {formatBDT(openingBalanceDue)}
                                   </td>
                                 </tr>
@@ -1377,43 +1313,106 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
                           </table>
                         </div>
 
-                        <div className="pt-1.5 border-t border-rose-200 dark:border-rose-800/80 flex justify-between text-[11px] text-slate-700 dark:text-slate-300 font-semibold">
+                        <div className="pt-1 border-t border-rose-300 flex justify-between text-[10.5px] text-black font-bold">
                           <span>পূর্বের মোট বকেয়া:</span>
-                          <span className="text-rose-700 dark:text-rose-300 font-bold">
+                          <span className="text-rose-800 font-extrabold">
                             {formatBDT(totalPreviousDueFromSales + openingBalanceDue)}
                           </span>
                         </div>
 
-                        <div className="flex justify-between text-[11px] text-slate-700 dark:text-slate-300 font-semibold">
+                        <div className="flex justify-between text-[10.5px] text-black font-bold">
                           <span>চলতি মেমোর বকেয়া:</span>
-                          <span className="text-rose-700 dark:text-rose-300 font-bold">
+                          <span className="text-rose-800 font-extrabold">
                             {formatBDT(sale.dueAmount)}
                           </span>
                         </div>
 
-                        <div className="pt-1.5 border-t-2 border-rose-300 dark:border-rose-700 flex justify-between text-xs font-black text-rose-700 dark:text-rose-300">
+                        <div className="pt-1 border-t-2 border-rose-400 flex justify-between text-[11px] font-black text-rose-800">
                           <span>সর্বমোট বকেয়া (চলতি + পূর্বের):</span>
-                          <span className="text-sm font-mono">
+                          <span className="text-xs font-mono">
                             {formatBDT(totalCustomerDueCombined)}
                           </span>
                         </div>
                       </>
                     ) : (
-                      <div className="py-1 text-center text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                      <div className="py-0.5 text-center text-[10.5px] font-bold text-emerald-800">
                         ✓ কাস্টমারের পূর্বের কোনো বকেয়া নেই (No Previous Due)
                       </div>
                     )}
                   </div>
                 </div>
+
+                {/* Right Column: Totals Summary */}
+                <div className="sm:col-span-5 print:col-span-5 space-y-1 text-black">
+                  <div className="flex justify-between text-black font-medium">
+                    <span>Subtotal:</span>
+                    <span className="font-bold text-black">
+                      {formatBDT(sale.subtotal)}
+                    </span>
+                  </div>
+
+                  {sale.discountTotal > 0 && (
+                    <div className="flex justify-between text-emerald-800 font-bold">
+                      <span>Discount:</span>
+                      <span>- {formatBDT(sale.discountTotal)}</span>
+                    </div>
+                  )}
+
+                  {sale.deliveryCharge && sale.deliveryCharge > 0 ? (
+                    <div className="flex justify-between text-blue-800 font-bold">
+                      <span>Delivery Charge:</span>
+                      <span>+ {formatBDT(sale.deliveryCharge)}</span>
+                    </div>
+                  ) : null}
+
+                  {sale.taxAmount > 0 && (
+                    <div className="flex justify-between text-black font-medium">
+                      <span>VAT / Tax:</span>
+                      <span className="font-bold">+ {formatBDT(sale.taxAmount)}</span>
+                    </div>
+                  )}
+
+                  <div className="pt-1.5 pb-1 border-t-2 border-b-2 border-black flex justify-between font-black text-sm text-black">
+                    <span>Grand Total:</span>
+                    <span className="text-base text-black">
+                      {formatBDT(sale.grandTotal)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between text-emerald-800 font-extrabold pt-0.5">
+                    <span>Paid Amount:</span>
+                    <span>{formatBDT(sale.paidAmount)}</span>
+                  </div>
+
+                  <div className="flex justify-between text-rose-700 font-black text-[13px]">
+                    <span>Remaining Due (চলতি বকেয়া):</span>
+                    <span>{formatBDT(sale.dueAmount)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Full-width Remarks & Terms & Conditions Box */}
+              <div className="mt-2.5 p-2 rounded-lg bg-white border border-black text-[9.5px] leading-snug text-black w-full">
+                {sale.notes && (
+                  <div className="mb-1 pb-1 border-b border-slate-300 text-[10px]">
+                    <span className="font-bold text-black">Remarks / মন্তব্য: </span>
+                    <span className="text-black">{sale.notes}</span>
+                  </div>
+                )}
+                <span className="font-bold text-black">শর্তাবলী (Terms & Conditions): </span>
+                <span>
+                  {businessProfile.invoiceNotes ||
+                    'Sold goods are non-refundable after 7 days and must be accompanied by the original cash memo. Electrical & sensor parts carry no replacement warranty once installed. (বিক্রিত মাল মূল অক্ষত প্যাকেটে ক্যাশ মেমোসহ ৭ দিনের মধ্যে পরিবর্তনযোগ্য। ইলেকট্রিক ও সেন্সর পার্টস ফিটিং করার পর কোনো ওয়ারেন্টি বা ফেরত প্রযোজ্য নয়।)'}
+                </span>
               </div>
 
               {/* Signatures & Footer Credits */}
-              <div className="pt-8 sm:pt-12 mt-4 sm:mt-6 border-t border-slate-200 dark:border-slate-800 flex flex-row items-end justify-between text-xs text-slate-500 gap-4">
+              <div className="pt-6 sm:pt-7 mt-3 border-t border-black flex flex-row items-end justify-between text-xs text-black gap-4">
                 <div className="text-center">
-                  <div className="w-28 sm:w-36 border-b border-slate-400 dark:border-slate-600 pb-1 mb-1 font-medium text-slate-800 dark:text-slate-200 text-[11px] sm:text-xs">
+                  <div className="w-32 sm:w-40 border-b border-black pb-0.5 mb-0.5 font-bold text-black text-[11px] sm:text-xs">
                     Customer Acceptance (গ্রাহক স্বাক্ষর)
                   </div>
-                  <span className="text-[9px] sm:text-[10px] text-slate-400 block">Received Goods in Order</span>
+                  <span className="text-[9px] sm:text-[10px] text-black font-medium block">Received Goods in Order</span>
                 </div>
 
                 <div className="text-center">
@@ -1421,55 +1420,55 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
                     <img
                       src={businessProfile.signatureUrl}
                       alt="Authorized Signature"
-                      className="h-8 sm:h-10 mx-auto object-contain mb-1"
+                      className="h-8 sm:h-9 mx-auto object-contain mb-0.5"
                     />
                   ) : null}
-                  <div className="w-32 sm:w-44 border-b border-slate-400 dark:border-slate-600 pb-1 mb-1 font-bold text-slate-900 dark:text-white text-[11px] sm:text-xs">
+                  <div className="w-36 sm:w-48 border-b border-black pb-0.5 mb-0.5 font-bold text-black text-[11px] sm:text-xs">
                     {businessProfile.ownerName
                       ? `${businessProfile.proprietorTitle || 'স্বত্বাধিকারী'}: ${businessProfile.ownerName}`
                       : (businessProfile.invoiceSignatureLabel || 'স্বত্বাধিকারী')}
                   </div>
-                  <span className="text-[9px] sm:text-[10px] font-semibold text-slate-600 dark:text-slate-300 block">
+                  <span className="text-[9px] sm:text-[10px] font-bold text-black block">
                     {businessProfile.businessName}
                   </span>
                 </div>
               </div>
 
               {/* Exact required credits inside printed invoice */}
-              <div className="mt-8 pt-3 border-t border-slate-100 text-center text-[10px] text-slate-400">
+              <div className="mt-4 pt-2 border-t border-black text-center text-[9.5px] font-medium text-black">
                 <span>Software: RM AutoManage • Developed by Md. Ibrahim Hossain • Powered by TIKMERK IT (https://tikmerk.com)</span>
               </div>
             </div>
           ) : (
             /* ================= THERMAL POS 80MM COMPACT RECEIPT ================= */
-            <div className="max-w-[320px] mx-auto bg-white text-slate-950 p-4 rounded shadow-sm text-xs font-mono print:p-0 print:shadow-none">
-              <div className="text-center pb-2 border-b border-dashed border-slate-400">
-                <h2 className="text-sm font-black uppercase tracking-tight">
+            <div className="max-w-[320px] mx-auto bg-white text-black p-4 rounded shadow-sm text-xs font-mono print:p-0 print:shadow-none">
+              <div className="text-center pb-2 border-b border-dashed border-black">
+                <h2 className="text-sm font-black uppercase tracking-tight text-black">
                   {businessProfile.businessName}
                 </h2>
                 {businessProfile.ownerName && (
-                  <p className="text-[11px] font-bold text-slate-700">
+                  <p className="text-[11px] font-bold text-black">
                     {businessProfile.proprietorTitle || 'স্বত্বাধিকারী'}: {businessProfile.ownerName}
                   </p>
                 )}
-                <p className="text-[10px] text-slate-600">{businessProfile.address}</p>
-                <p className="text-[10px] text-slate-600">Tel: {businessProfile.phone}</p>
-                {businessProfile.binVat && <p className="text-[9px] text-slate-500">BIN: {businessProfile.binVat}</p>}
-                <p className="text-[10px] font-bold mt-1 uppercase">*** CASH RECEIPT (ক্যাশ মেমো) ***</p>
+                <p className="text-[10px] text-black">{businessProfile.address}</p>
+                <p className="text-[10px] text-black">Tel: {businessProfile.phone}</p>
+                {businessProfile.binVat && <p className="text-[9px] text-black">BIN: {businessProfile.binVat}</p>}
+                <p className="text-[10px] font-bold mt-1 uppercase text-black">*** CASH RECEIPT (ক্যাশ মেমো) ***</p>
               </div>
 
-              <div className="py-2 border-b border-dashed border-slate-400 text-[11px] space-y-0.5">
+              <div className="py-2 border-b border-dashed border-black text-[11px] space-y-0.5 text-black">
                 <div>Inv: #{sale.invoiceNo}</div>
                 <div>Date: {formatDateTime(sale.date)}</div>
-                <div>Cust: {sale.customerName}</div>
+                <div className="text-sm font-black">Cust: {sale.customerName}</div>
                 {sale.customerPhone && <div>Phone: {sale.customerPhone}</div>}
                 {sale.vehicleInfo && <div>Vehicle: {sale.vehicleInfo}</div>}
               </div>
 
-              <div className="py-2 border-b border-dashed border-slate-400">
-                <table className="w-full text-left text-[11px]">
+              <div className="py-2 border-b border-dashed border-black">
+                <table className="w-full text-left text-[11px] text-black">
                   <thead>
-                    <tr className="border-b border-slate-300">
+                    <tr className="border-b border-black">
                       <th>Item</th>
                       <th className="text-center">Qty</th>
                       <th className="text-right">Price</th>
@@ -1487,13 +1486,12 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
                       return (
                         <tr key={i}>
                           <td className="py-1 pr-1">
-                            <div className="font-bold line-clamp-1">{item.productName}</div>
-                            <div className="text-[9px] text-slate-600 flex flex-wrap gap-1 mt-0.5">
-                              {partCode && <span className="font-bold text-blue-700">কোড: {partCode}</span>}
+                            <div className="font-bold line-clamp-1 text-black">{item.productName}</div>
+                            <div className="text-[9px] text-black flex flex-wrap gap-1 mt-0.5">
+                              {partCode && <span className="font-bold text-blue-800">কোড: {partCode}</span>}
                               {brandName && <span>• {brandName}</span>}
                               {originName && <span>• {originName}</span>}
                               <span className="font-bold">[{conditionName}]</span>
-                              <span className="font-mono text-slate-400">SKU: {item.sku}</span>
                             </div>
                           </td>
                           <td className="text-center">{item.quantity}</td>
@@ -1506,7 +1504,7 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
                 </table>
               </div>
 
-              <div className="py-2 border-b border-dashed border-slate-400 text-[11px] space-y-1">
+              <div className="py-2 border-b border-dashed border-black text-[11px] space-y-1 text-black">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
                   <span>{formatBDT(sale.subtotal)}</span>
@@ -1518,12 +1516,12 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
                   </div>
                 )}
                 {sale.deliveryCharge && sale.deliveryCharge > 0 ? (
-                  <div className="flex justify-between text-blue-600">
+                  <div className="flex justify-between text-blue-800">
                     <span>Delivery:</span>
                     <span>+{formatBDT(sale.deliveryCharge)}</span>
                   </div>
                 ) : null}
-                <div className="flex justify-between font-black text-xs border-t border-slate-300 pt-1">
+                <div className="flex justify-between font-black text-xs border-t border-black pt-1">
                   <span>TOTAL:</span>
                   <span>{formatBDT(sale.grandTotal)}</span>
                 </div>
@@ -1531,37 +1529,37 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
                   <span>PAID:</span>
                   <span>{formatBDT(sale.paidAmount)}</span>
                 </div>
-                <div className="flex justify-between font-bold text-red-600">
+                <div className="flex justify-between font-bold text-red-700">
                   <span>DUE (চলতি বকেয়া):</span>
                   <span>{formatBDT(sale.dueAmount)}</span>
                 </div>
 
                 {previousSalesWithDue.length > 0 || openingBalanceDue > 0 ? (
-                  <div className="border border-dashed border-red-400 p-2 mt-2 rounded space-y-1 bg-red-50/50 text-[10px]">
-                    <div className="font-bold text-red-900 border-b border-dashed border-red-300 pb-1 text-center">
+                  <div className="border border-dashed border-red-600 p-2 mt-2 rounded space-y-1 bg-red-50/50 text-[10px]">
+                    <div className="font-bold text-red-900 border-b border-dashed border-red-400 pb-1 text-center">
                       *** পূর্বের বকেয়া মেমোসমূহের তালিকা ***
                     </div>
                     {previousSalesWithDue.map((prev) => (
-                      <div key={prev.id} className="flex justify-between text-slate-700">
+                      <div key={prev.id} className="flex justify-between text-black">
                         <span>{formatDate(prev.date)} #{prev.invoiceNo} (মোট: ৳{Math.round(prev.grandTotal).toLocaleString()})</span>
-                        <span className="font-bold text-red-600">{formatBDT(prev.dueAmount)}</span>
+                        <span className="font-bold text-red-700">{formatBDT(prev.dueAmount)}</span>
                       </div>
                     ))}
                     {openingBalanceDue > 0 && (
-                      <div className="flex justify-between text-slate-700">
+                      <div className="flex justify-between text-black">
                         <span>প্রারম্ভিক হিসাবের বকেয়া</span>
-                        <span className="font-bold text-red-600">{formatBDT(openingBalanceDue)}</span>
+                        <span className="font-bold text-red-700">{formatBDT(openingBalanceDue)}</span>
                       </div>
                     )}
-                    <div className="border-t border-dashed border-red-300 pt-1 flex justify-between font-bold text-slate-800">
+                    <div className="border-t border-dashed border-red-400 pt-1 flex justify-between font-bold text-black">
                       <span>পূর্বের মোট বকেয়া:</span>
                       <span>{formatBDT(totalPreviousDueFromSales + openingBalanceDue)}</span>
                     </div>
-                    <div className="flex justify-between font-bold text-slate-800">
+                    <div className="flex justify-between font-bold text-black">
                       <span>চলতি মেমোর বকেয়া:</span>
                       <span>{formatBDT(sale.dueAmount)}</span>
                     </div>
-                    <div className="border-t border-red-400 pt-1 flex justify-between font-black text-red-700 text-[11px]">
+                    <div className="border-t border-red-600 pt-1 flex justify-between font-black text-red-700 text-[11px]">
                       <span>সর্বমোট বকেয়া (চলতি+পূর্বের):</span>
                       <span>{formatBDT(totalCustomerDueCombined)}</span>
                     </div>
@@ -1569,10 +1567,10 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
                 ) : null}
               </div>
 
-              <div className="text-center pt-3 text-[10px] text-slate-600 space-y-1">
+              <div className="text-center pt-3 text-[10px] text-black space-y-1">
                 <p>Thank you for choosing {businessProfile.businessName}!</p>
                 <p>{businessProfile.invoiceNotes || 'Goods returnable within 7 days in original packaging with cash memo.'}</p>
-                <p className="text-[9px] text-slate-400 pt-1">
+                <p className="text-[9px] text-black pt-1">
                   Powered by TIKMERK IT (https://tikmerk.com)
                 </p>
               </div>

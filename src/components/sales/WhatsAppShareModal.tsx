@@ -581,15 +581,15 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
           pointerEvents: 'none',
         }}
       >
-        <div ref={offscreenInvoiceRef} className="bg-white text-slate-900 p-8">
+        <div ref={offscreenInvoiceRef} className="bg-white text-black p-5">
           {/* Header: Shop Branding */}
-          <div className="flex items-start justify-between pb-6 border-b border-slate-200">
+          <div className="flex items-start justify-between pb-3 border-b-2 border-black">
             <div className="flex items-start gap-3">
               {businessProfile.logoUrl ? (
                 <img
                   src={businessProfile.logoUrl}
                   alt={businessProfile.businessName}
-                  className="w-14 h-14 object-contain rounded-lg border border-slate-200 shrink-0"
+                  className="w-12 h-12 object-contain rounded-lg border border-black shrink-0"
                 />
               ) : (
                 <div className="w-12 h-12 rounded-xl bg-slate-900 text-amber-500 flex items-center justify-center font-black shrink-0">
@@ -597,40 +597,40 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
                 </div>
               )}
               <div>
-                <h1 className="text-2xl font-black tracking-tight text-slate-900">
+                <h1 className="text-xl font-black tracking-tight text-black leading-tight">
                   {businessProfile.businessName}
                 </h1>
-                <div className="text-xs font-bold text-slate-700 mt-0.5">
+                <div className="text-[13px] font-bold text-black mt-0.5">
                   {businessProfile.proprietorTitle || 'স্বত্বাধিকারী'}: {businessProfile.ownerName || 'আব্দুর রহিম রনি'}
                 </div>
-                <p className="text-xs text-slate-500 max-w-sm mt-0.5">
+                <p className="text-[11px] text-black max-w-md mt-0.5 leading-snug">
                   {businessProfile.address}
                 </p>
-                <div className="text-[11px] text-slate-500 mt-1 flex flex-wrap gap-x-3">
+                <div className="text-[10.5px] text-black font-medium mt-0.5 flex flex-wrap gap-x-3">
                   <span>📞 {businessProfile.phone}</span>
                   <span>💬 WA: {businessProfile.whatsappNumber}</span>
                   {businessProfile.email && <span>✉️ {businessProfile.email}</span>}
                 </div>
                 {businessProfile.binVat && (
-                  <div className="text-[10px] text-slate-400 mt-0.5">
+                  <div className="text-[10px] text-black mt-0.5">
                     BIN/VAT: {businessProfile.binVat} • Trade: {businessProfile.tradeLicense}
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="text-right">
-              <div className="text-xs font-bold uppercase tracking-widest text-amber-600">
+            <div className="text-right shrink-0">
+              <div className="text-xs font-extrabold uppercase tracking-widest text-amber-700">
                 CASH MEMO / INVOICE
               </div>
-              <div className="text-lg font-black font-mono mt-0.5 text-slate-900">
+              <div className="text-lg font-black font-mono mt-0.5 text-black">
                 #{sale.invoiceNo}
               </div>
-              <div className="text-xs text-slate-500 mt-0.5">
+              <div className="text-[11px] text-black font-semibold mt-0.5">
                 Date: {formatDateTime(sale.date)}
               </div>
-              <div className="mt-1.5">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-200">
+              <div className="mt-1">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-black border border-black">
                   {sale.paymentStatus}
                 </span>
               </div>
@@ -638,43 +638,43 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
           </div>
 
           {/* Customer info */}
-          <div className="grid grid-cols-2 gap-4 py-4 border-b border-slate-200 text-xs">
+          <div className="grid grid-cols-2 gap-4 py-2.5 border-b border-black text-xs">
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+              <span className="text-[10px] font-extrabold text-black uppercase tracking-wider block mb-0.5">
                 Billed To (Customer):
               </span>
-              <div className="font-extrabold text-sm text-slate-900">{sale.customerName}</div>
+              <div className="font-black text-lg text-black leading-tight">{sale.customerName}</div>
               {sale.customerPhone && (
-                <div className="text-slate-500 mt-0.5">Phone: {sale.customerPhone}</div>
+                <div className="text-black font-semibold mt-0.5">Phone: {sale.customerPhone}</div>
               )}
               {customerObj?.address && (
-                <div className="text-slate-400 mt-0.5">{customerObj.address}</div>
+                <div className="text-black mt-0.5">{customerObj.address}</div>
               )}
             </div>
             <div className="text-right">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+              <span className="text-[10px] font-extrabold text-black uppercase tracking-wider block mb-0.5">
                 Vehicle & Details:
               </span>
-              <div className="font-bold text-slate-800">{sale.vehicleInfo || 'General / Walk-in'}</div>
-              <div className="text-slate-500 mt-0.5">
+              <div className="font-bold text-black">{sale.vehicleInfo || 'General / Walk-in'}</div>
+              <div className="text-black font-medium mt-0.5">
                 Sold By: {sale.sellerName === 'Engr. Rezaul Karim' ? (businessProfile.ownerName || 'আব্দুর রহিম রনি') : (sale.sellerName || 'আব্দুর রহিম রনি')}
               </div>
-              {sale.notes && <div className="text-slate-400 mt-0.5 italic">"{sale.notes}"</div>}
+              {sale.notes && <div className="text-black font-medium mt-0.5 italic">"{sale.notes}"</div>}
             </div>
           </div>
 
           {/* Items Table */}
-          <table className="w-full text-left text-xs my-4">
+          <table className="w-full text-left text-xs my-2">
             <thead>
-              <tr className="border-b-2 border-slate-300 text-slate-500 uppercase tracking-wider text-[10px] bg-slate-50">
-                <th className="py-2 px-2 text-center w-8">#</th>
-                <th className="py-2 px-2">Item / Spare Part</th>
-                <th className="py-2 px-2 text-center w-16">Qty</th>
-                <th className="py-2 px-2 text-right w-24">Rate (Tk)</th>
-                <th className="py-2 px-2 text-right w-28">Total (Tk)</th>
+              <tr className="border-b-2 border-black text-black uppercase tracking-wider text-[10.5px] font-black">
+                <th className="py-1.5 px-1 text-center w-7">#</th>
+                <th className="py-1.5 px-2">Item / Spare Part</th>
+                <th className="py-1.5 px-2 text-center w-16">Qty</th>
+                <th className="py-1.5 px-2 text-right w-24">Rate (Tk)</th>
+                <th className="py-1.5 px-2 text-right w-24">Total (Tk)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-300">
               {sale.items.map((it, idx) => {
                 const prod = (products || []).find((p) => p.id === it.productId);
                 const code = it.productCode || prod?.productCode;
@@ -684,75 +684,47 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
 
                 return (
                   <tr key={idx}>
-                    <td className="py-2.5 px-2 text-center text-slate-400">{idx + 1}</td>
-                    <td className="py-2.5 px-2">
-                      <div className="font-bold text-slate-800">{it.productName}</div>
-                      <div className="text-[10px] text-slate-500 flex flex-wrap items-center gap-1.5 mt-0.5">
+                    <td className="py-1.5 px-1 text-center text-black font-bold align-top">{idx + 1}</td>
+                    <td className="py-1.5 px-2 align-top">
+                      <div className="font-bold text-black leading-snug">{it.productName}</div>
+                      <div className="text-[9.5px] text-black flex flex-wrap items-center gap-1 mt-0.5 leading-tight">
                         {code && (
-                          <span className="font-mono font-bold text-amber-700 bg-amber-50 px-1 rounded border border-amber-200">
+                          <span className="font-mono font-bold text-blue-800 bg-blue-50 px-1 rounded border border-blue-300">
                             কোড: {code}
                           </span>
                         )}
-                        {it.sku && <span className="font-mono text-slate-400">SKU: {it.sku}</span>}
-                        {brand && <span>• {brand}</span>}
-                        {origin && <span>• {origin}</span>}
-                        <span className="font-semibold text-emerald-700 bg-emerald-50 px-1 rounded">
+                        {brand && (
+                          <span className="bg-white font-semibold text-black px-1 rounded border border-black">
+                            ব্র্যান্ড: {brand}
+                          </span>
+                        )}
+                        {origin && (
+                          <span className="bg-white font-semibold text-black px-1 rounded border border-black">
+                            অরিজিন: {origin}
+                          </span>
+                        )}
+                        <span className="font-bold text-emerald-800 bg-emerald-50 px-1 rounded border border-black uppercase">
                           [{condition}]
                         </span>
                       </div>
                     </td>
-                    <td className="py-2.5 px-2 text-center font-bold">{it.quantity} {it.unit || ''}</td>
-                    <td className="py-2.5 px-2 text-right font-mono">{Math.round(it.sellingPrice).toLocaleString()}</td>
-                    <td className="py-2.5 px-2 text-right font-mono font-bold">{Math.round(it.total).toLocaleString()}</td>
+                    <td className="py-1.5 px-2 text-center font-bold text-black align-top">{it.quantity} {it.unit || ''}</td>
+                    <td className="py-1.5 px-2 text-right font-mono font-medium text-black align-top">{Math.round(it.sellingPrice).toLocaleString()}</td>
+                    <td className="py-1.5 px-2 text-right font-mono font-bold text-black align-top">{Math.round(it.total).toLocaleString()}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
 
-          {/* Financial Summary & Previous Dues */}
-          <div className="flex justify-end pt-2 border-t-2 border-slate-300 text-xs">
-            <div className="w-80 space-y-1.5">
-              <div className="flex justify-between text-slate-600">
-                <span>Subtotal:</span>
-                <span className="font-mono">Tk. {Math.round(sale.subtotal).toLocaleString()}</span>
-              </div>
-              {sale.discountTotal > 0 && (
-                <div className="flex justify-between text-rose-600 font-semibold">
-                  <span>Discount:</span>
-                  <span className="font-mono">- Tk. {Math.round(sale.discountTotal).toLocaleString()}</span>
-                </div>
-              )}
-              {sale.deliveryCharge !== undefined && sale.deliveryCharge > 0 && (
-                <div className="flex justify-between text-blue-600 font-semibold">
-                  <span>Delivery / Transport:</span>
-                  <span className="font-mono">+ Tk. {Math.round(sale.deliveryCharge).toLocaleString()}</span>
-                </div>
-              )}
-              {sale.taxAmount > 0 && (
-                <div className="flex justify-between text-slate-600">
-                  <span>VAT / Tax:</span>
-                  <span className="font-mono">+ Tk. {Math.round(sale.taxAmount).toLocaleString()}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-sm font-black pt-1.5 border-t border-slate-300 text-slate-900">
-                <span>Grand Total:</span>
-                <span className="font-mono">Tk. {Math.round(sale.grandTotal).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-emerald-700 font-bold">
-                <span>Paid Amount:</span>
-                <span className="font-mono">Tk. {Math.round(sale.paidAmount).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-sm font-black pt-1 border-t border-dashed border-slate-300 text-rose-600">
-                <span>Due Balance (চলতি বকেয়া):</span>
-                <span className="font-mono">Tk. {Math.round(sale.dueAmount).toLocaleString()}</span>
-              </div>
-
-              {/* Dedicated Previous Dues Breakdown Box in Image / PDF Snapshot */}
-              <div className="mt-3 p-2.5 rounded-xl border-2 border-rose-300 bg-rose-50/60 text-xs space-y-1.5">
-                <div className="flex items-center justify-between pb-1 border-b border-rose-200 font-bold text-rose-950 text-[11px]">
+          {/* Financial Summary & Previous Dues: Left = Previous Dues + Notes/Terms, Right = Totals */}
+          <div className="grid grid-cols-12 gap-3 pt-2.5 border-t-2 border-black text-xs items-start">
+            <div className="col-span-7 space-y-2 min-w-0">
+              {/* Dedicated Previous Dues Breakdown Box on Left Side */}
+              <div className="p-2 rounded-lg border-2 border-rose-400 bg-rose-50/40 text-[11px] space-y-1">
+                <div className="flex items-center justify-between pb-1 border-b border-rose-300 font-bold text-rose-950 text-[10.5px]">
                   <span>কাস্টমারের পূর্বের বকেয়া ইনভয়েসের তালিকা (Previous Due Invoices)</span>
-                  <span className="text-[10px] text-rose-600 font-bold">
+                  <span className="text-[10px] text-rose-700 font-extrabold shrink-0 ml-1">
                     {previousSalesWithDue.length > 0 || openingBalanceDue > 0
                       ? `${previousSalesWithDue.length + (openingBalanceDue > 0 ? 1 : 0)}টি বকেয়া মেমো`
                       : 'পরিশোধিত'}
@@ -761,45 +733,45 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
 
                 {previousSalesWithDue.length > 0 || openingBalanceDue > 0 ? (
                   <>
-                    <table className="w-full text-left text-[10px]">
+                    <table className="w-full text-left text-[9.5px] text-black">
                       <thead>
-                        <tr className="border-b border-rose-200 text-slate-500 uppercase font-semibold">
-                          <th className="py-1">তারিখ (Date)</th>
-                          <th className="py-1 px-1">ইনভয়েস #</th>
-                          <th className="py-1 px-1 text-right">মোট বিল</th>
-                          <th className="py-1 px-1 text-right">পরিশোধ</th>
-                          <th className="py-1 text-right">বকেয়া (Due)</th>
+                        <tr className="border-b border-rose-300 text-black uppercase font-bold">
+                          <th className="py-0.5">তারিখ</th>
+                          <th className="py-0.5 px-1">ইনভয়েস #</th>
+                          <th className="py-0.5 px-1 text-right">মোট বিল</th>
+                          <th className="py-0.5 px-1 text-right">পরিশোধ</th>
+                          <th className="py-0.5 text-right">বকেয়া</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-rose-100">
+                      <tbody className="divide-y divide-rose-200">
                         {previousSalesWithDue.map((prev) => (
-                          <tr key={prev.id} className="py-0.5 text-slate-800">
-                            <td className="py-0.5 text-slate-600 font-mono">
+                          <tr key={prev.id} className="text-black">
+                            <td className="py-0.5 text-black font-mono">
                               {formatDate(prev.date)}
                             </td>
-                            <td className="py-0.5 px-1 font-mono font-bold text-slate-900">
+                            <td className="py-0.5 px-1 font-mono font-bold text-black">
                               #{prev.invoiceNo}
                             </td>
-                            <td className="py-0.5 px-1 text-right text-slate-600 font-mono">
+                            <td className="py-0.5 px-1 text-right text-black font-mono">
                               {formatBDT(prev.grandTotal)}
                             </td>
-                            <td className="py-0.5 px-1 text-right text-emerald-600 font-mono">
+                            <td className="py-0.5 px-1 text-right text-emerald-800 font-mono font-semibold">
                               {formatBDT(prev.paidAmount)}
                             </td>
-                            <td className="py-0.5 text-right font-bold text-rose-600 font-mono">
+                            <td className="py-0.5 text-right font-bold text-rose-700 font-mono">
                               {formatBDT(prev.dueAmount)}
                             </td>
                           </tr>
                         ))}
                         {openingBalanceDue > 0 && (
-                          <tr className="py-0.5 text-slate-800">
-                            <td className="py-0.5 text-slate-600 italic">
+                          <tr className="text-black">
+                            <td className="py-0.5 text-black font-mono">
                               {customerObj?.createdAt ? formatDate(customerObj.createdAt) : 'প্রারম্ভিক'}
                             </td>
-                            <td className="py-0.5 px-1 text-slate-700 font-semibold" colSpan={3}>
+                            <td className="py-0.5 px-1 text-black font-semibold" colSpan={3}>
                               প্রারম্ভিক হিসাবের বকেয়া (Account Opening Due)
                             </td>
-                            <td className="py-0.5 text-right font-bold text-rose-600 font-mono">
+                            <td className="py-0.5 text-right font-bold text-rose-700 font-mono">
                               {formatBDT(openingBalanceDue)}
                             </td>
                           </tr>
@@ -807,51 +779,89 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
                       </tbody>
                     </table>
 
-                    <div className="pt-1 border-t border-rose-200 flex justify-between text-[11px] text-slate-700 font-semibold">
+                    <div className="pt-1 border-t border-rose-300 flex justify-between text-[10.5px] text-black font-bold">
                       <span>পূর্বের মোট বকেয়া:</span>
-                      <span className="text-rose-700 font-bold">
+                      <span className="text-rose-800 font-extrabold">
                         {formatBDT(totalPreviousDueFromSales + openingBalanceDue)}
                       </span>
                     </div>
 
-                    <div className="flex justify-between text-[11px] text-slate-700 font-semibold">
+                    <div className="flex justify-between text-[10.5px] text-black font-bold">
                       <span>চলতি মেমোর বকেয়া:</span>
-                      <span className="text-rose-700 font-bold">
+                      <span className="text-rose-800 font-extrabold">
                         {formatBDT(sale.dueAmount)}
                       </span>
                     </div>
 
-                    <div className="pt-1.5 border-t-2 border-rose-300 flex justify-between text-xs font-black text-rose-800">
+                    <div className="pt-1 border-t-2 border-rose-400 flex justify-between text-[11px] font-black text-rose-800">
                       <span>সর্বমোট বকেয়া (চলতি + পূর্বের):</span>
-                      <span className="text-sm font-mono">
+                      <span className="text-xs font-mono">
                         {formatBDT(totalCustomerDueCombined)}
                       </span>
                     </div>
                   </>
                 ) : (
-                  <div className="py-1 text-center text-[10px] font-semibold text-emerald-700">
+                  <div className="py-0.5 text-center text-[10.5px] font-bold text-emerald-800">
                     ✓ কাস্টমারের পূর্বের কোনো বকেয়া নেই (No Previous Due)
                   </div>
                 )}
               </div>
             </div>
+
+            <div className="col-span-5 space-y-1 text-black">
+              <div className="flex justify-between text-black font-medium">
+                <span>Subtotal:</span>
+                <span className="font-mono font-bold">Tk. {Math.round(sale.subtotal).toLocaleString()}</span>
+              </div>
+              {sale.discountTotal > 0 && (
+                <div className="flex justify-between text-rose-700 font-bold">
+                  <span>Discount:</span>
+                  <span className="font-mono">- Tk. {Math.round(sale.discountTotal).toLocaleString()}</span>
+                </div>
+              )}
+              {sale.deliveryCharge !== undefined && sale.deliveryCharge > 0 && (
+                <div className="flex justify-between text-blue-800 font-bold">
+                  <span>Delivery / Transport:</span>
+                  <span className="font-mono">+ Tk. {Math.round(sale.deliveryCharge).toLocaleString()}</span>
+                </div>
+              )}
+              {sale.taxAmount > 0 && (
+                <div className="flex justify-between text-black font-medium">
+                  <span>VAT / Tax:</span>
+                  <span className="font-mono font-bold">+ Tk. {Math.round(sale.taxAmount).toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm font-black pt-1.5 pb-1 border-t-2 border-b-2 border-black text-black">
+                <span>Grand Total:</span>
+                <span className="font-mono">Tk. {Math.round(sale.grandTotal).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-emerald-800 font-extrabold pt-0.5">
+                <span>Paid Amount:</span>
+                <span className="font-mono">Tk. {Math.round(sale.paidAmount).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm font-black pt-1 text-rose-700">
+                <span>Due Balance (চলতি বকেয়া):</span>
+                <span className="font-mono">Tk. {Math.round(sale.dueAmount).toLocaleString()}</span>
+              </div>
+            </div>
           </div>
 
-          {/* Notes and Terms */}
-          {businessProfile.invoiceNotes && (
-            <div className="mt-4 p-2.5 rounded-lg border border-slate-200 bg-slate-50 text-[10px] text-slate-600">
-              <span className="font-bold text-slate-800 block mb-0.5">Notes & Terms / শর্তাবলী:</span>
-              <p>{businessProfile.invoiceNotes}</p>
-            </div>
-          )}
+          {/* Full-width Terms & Conditions */}
+          <div className="mt-2.5 p-2 rounded-lg border border-black bg-white text-[9.5px] text-black leading-snug w-full">
+            <span className="font-bold text-black">শর্তাবলী (Terms & Conditions): </span>
+            <span>
+              {businessProfile.invoiceNotes ||
+                'Sold goods are non-refundable after 7 days and must be accompanied by the original cash memo. Electrical & sensor parts carry no replacement warranty once installed. (বিক্রিত মাল মূল অক্ষত প্যাকেটে ক্যাশ মেমোসহ ৭ দিনের মধ্যে পরিবর্তনযোগ্য। ইলেকট্রিক ও সেন্সর পার্টস ফিটিং করার পর কোনো ওয়ারেন্টি বা ফেরত প্রযোজ্য নয়।)'}
+            </span>
+          </div>
 
           {/* Signatures & Footer Credits */}
-          <div className="pt-8 mt-4 border-t border-slate-200 flex flex-row items-end justify-between text-xs text-slate-500">
+          <div className="pt-7 mt-3 border-t border-black flex flex-row items-end justify-between text-xs text-black">
             <div className="text-center">
-              <div className="w-36 border-b border-slate-400 pb-1 mb-1 font-medium text-slate-800 text-xs">
+              <div className="w-36 border-b border-black pb-0.5 mb-0.5 font-bold text-black text-xs">
                 Customer Acceptance (গ্রাহক স্বাক্ষর)
               </div>
-              <span className="text-[10px] text-slate-400 block">Received Goods in Order</span>
+              <span className="text-[10px] text-black font-medium block">Received Goods in Order</span>
             </div>
 
             <div className="text-center">
@@ -859,22 +869,22 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
                 <img
                   src={businessProfile.signatureUrl}
                   alt="Authorized Signature"
-                  className="h-10 mx-auto object-contain mb-1"
+                  className="h-9 mx-auto object-contain mb-0.5"
                 />
               ) : null}
-              <div className="w-44 border-b border-slate-400 pb-1 mb-1 font-bold text-slate-900 text-xs">
+              <div className="w-44 border-b border-black pb-0.5 mb-0.5 font-bold text-black text-xs">
                 {businessProfile.ownerName
                   ? `${businessProfile.proprietorTitle || 'স্বত্বাধিকারী'}: ${businessProfile.ownerName}`
                   : (businessProfile.invoiceSignatureLabel || 'স্বত্বাধিকারী: আব্দুর রহিম রনি')}
               </div>
-              <span className="text-[10px] font-semibold text-slate-600 block">
+              <span className="text-[10px] font-bold text-black block">
                 {businessProfile.businessName}
               </span>
             </div>
           </div>
 
           {/* Software Branding Footer */}
-          <div className="mt-6 pt-3 border-t border-slate-100 text-center text-[10px] text-slate-400">
+          <div className="mt-4 pt-2 border-t border-black text-center text-[9.5px] font-medium text-black">
             <span>Software: RM AutoManage • Developed by Md. Ibrahim Hossain • Powered by TIKMERK IT (https://tikmerk.com)</span>
           </div>
         </div>
