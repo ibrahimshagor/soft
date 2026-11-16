@@ -69,7 +69,7 @@ export const CollectDueModal: React.FC<CollectDueModalProps> = ({
     }
 
     try {
-      recordCustomerPayment({
+      const rec = recordCustomerPayment({
         customerId,
         amount,
         paymentMethodId,
@@ -82,7 +82,7 @@ export const CollectDueModal: React.FC<CollectDueModalProps> = ({
       if (sendWhatsApp && selectedCust) {
         const phone = sanitizePhoneNumber(selectedCust.whatsappNumber || selectedCust.phone);
         if (phone) {
-          const remainingDue = Math.max(0, selectedCust.currentDue - amount);
+          const remainingDue = rec.newBalance;
           const msg = `Assalamu Alaikum *${selectedCust.name}*,\nWe received your payment of *${formatBDT(amount)}* for *${businessProfile.businessName}*.\nYour current outstanding balance is: *${formatBDT(remainingDue)}*.\nThank you!\n📞 ${businessProfile.phone}`;
           const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
           window.open(url, '_blank');

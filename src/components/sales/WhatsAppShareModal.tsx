@@ -32,6 +32,7 @@ import {
   generateElementAsImageFile,
   downloadFileDirectly,
 } from '../../utils/pdfGenerator';
+import { computeCustomerReconciledTotals } from '../../utils/customerReconciliation';
 
 interface WhatsAppShareModalProps {
   sale: Sale;
@@ -40,11 +41,12 @@ interface WhatsAppShareModalProps {
 }
 
 export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
-  sale,
+  sale: saleProp,
   onClose,
   onOpenFullInvoice,
 }) => {
-  const { businessProfile, customers, language, t, sales, products } = useApp();
+  const { businessProfile, customers, language, t, sales, products, paymentRecords, loanRecords } = useApp();
+  const sale = (sales || []).find((s) => s.id === saleProp.id) || saleProp;
 
   // Resolve best initial WhatsApp number
   const resolvedTarget = resolveCustomerWhatsApp(sale, customers);
@@ -93,7 +95,9 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
     0
   );
 
-  const customerTotalDueInDirectory = customerObj ? (customerObj.currentDue || 0) : 0;
+  const customerTotalDueInDirectory = customerObj
+    ? computeCustomerReconciledTotals(customerObj, sales, paymentRecords, loanRecords).currentDue
+    : 0;
   const currentMemoDue = sale.dueAmount || 0;
 
   const totalCustomerDueCombined = Math.max(
@@ -103,6 +107,10 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
 
   const totalPreviousDueCombined = Math.max(0, totalCustomerDueCombined - currentMemoDue);
   const openingBalanceDue = Math.max(0, totalPreviousDueCombined - totalPreviousDueFromSales);
+  const originalOpeningBalance = openingBalanceDue > 0
+    ? Math.max(customerObj?.openingBalance || 0, openingBalanceDue)
+    : 0;
+  const openingBalancePaid = Math.max(0, originalOpeningBalance - openingBalanceDue);
 
   const previousDuesSummaryList = [
     ...previousSalesWithDue.map((p) => ({
@@ -117,8 +125,8 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
           {
             invoiceNo: 'পূর্ববর্তী হিসাবের জের',
             date: customerObj?.createdAt || sale.date,
-            grandTotal: openingBalanceDue,
-            paidAmount: 0,
+            grandTotal: originalOpeningBalance,
+            paidAmount: openingBalancePaid,
             dueAmount: openingBalanceDue,
           },
         ]
@@ -768,8 +776,14 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
                             <td className="py-0.5 text-black font-mono">
                               {customerObj?.createdAt ? formatDate(customerObj.createdAt) : 'প্রারম্ভিক'}
                             </td>
-                            <td className="py-0.5 px-1 text-black font-semibold" colSpan={3}>
-                              প্রারম্ভিক হিসাবের বকেয়া (Account Opening Due)
+                            <td className="py-0.5 px-1 text-black font-bold">
+                              পূর্বের হিসাব (Opening)
+                            </td>
+                            <td className="py-0.5 px-1 text-right text-black font-mono">
+                              {formatBDT(originalOpeningBalance)}
+                            </td>
+                            <td className="py-0.5 px-1 text-right text-emerald-800 font-mono font-semibold">
+                              {formatBDT(openingBalancePaid)}
                             </td>
                             <td className="py-0.5 text-right font-bold text-rose-700 font-mono">
                               {formatBDT(openingBalanceDue)}

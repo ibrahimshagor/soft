@@ -211,6 +211,8 @@ export interface Sale {
   taxAmount: number;
   grandTotal: number;
   paidAmount: number;
+  initialPaidAmount?: number;
+  allocatedFromPayments?: number;
   dueAmount: number;
   dueDate?: string;
   paymentStatus: 'PAID' | 'PARTIALLY_PAID' | 'UNPAID';
@@ -292,6 +294,12 @@ export interface PaymentRecord {
   accountName: string;
   previousBalance: number;
   newBalance: number;
+  openingBalancePaid?: number;
+  allocations?: Array<{
+    saleId: string;
+    invoiceNo: string;
+    amount: number;
+  }>;
   notes?: string;
   recordedBy: string;
   createdAt: string;

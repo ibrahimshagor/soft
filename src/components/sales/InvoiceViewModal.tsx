@@ -38,6 +38,7 @@ import {
   generateElementAsImageFile,
   downloadFileDirectly,
 } from '../../utils/pdfGenerator';
+import { computeCustomerReconciledTotals } from '../../utils/customerReconciliation';
 import { WhatsAppShareModal } from './WhatsAppShareModal';
 
 interface InvoiceViewModalProps {
@@ -51,8 +52,9 @@ export const InvoiceViewModal: React.FC<InvoiceViewModalProps> = ({ sale, onClos
   return <InvoiceViewModalContent key={sale.id} sale={sale} onClose={onClose} />;
 };
 
-const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = ({ sale, onClose }) => {
-  const { businessProfile, t, customers, language, sales, products } = useApp();
+const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = ({ sale: saleProp, onClose }) => {
+  const { businessProfile, t, customers, language, sales, products, paymentRecords, loanRecords } = useApp();
+  const sale = (sales || []).find((s) => s.id === saleProp.id) || saleProp;
   const [printFormat, setPrintFormat] = useState<'a4' | 'thermal'>('a4');
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isDownloadingImage, setIsDownloadingImage] = useState(false);
@@ -100,11 +102,13 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
     0
   );
 
-  // Customer's total outstanding balance across their account (from Customer Directory)
-  const customerTotalDueInDirectory = customerObj ? (customerObj.currentDue || 0) : 0;
+  // Customer's reconciled total outstanding balance across their account (from ledger sources)
+  const customerTotalDueInDirectory = customerObj
+    ? computeCustomerReconciledTotals(customerObj, sales, paymentRecords, loanRecords).currentDue
+    : 0;
   const currentMemoDue = sale.dueAmount || 0;
 
-  // The Grand Total Due of this customer across all accounts (guaranteed to match Customer Directory)
+  // The Grand Total Due of this customer across all accounts (guaranteed to match Customer Directory & Ledger)
   const totalCustomerDueCombined = Math.max(
     customerTotalDueInDirectory,
     currentMemoDue + totalPreviousDueFromSales
@@ -115,6 +119,10 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
 
   // Earlier balance / opening balance remaining prior to the recorded previous invoices
   const openingBalanceDue = Math.max(0, totalPreviousDueCombined - totalPreviousDueFromSales);
+  const originalOpeningBalance = openingBalanceDue > 0
+    ? Math.max(customerObj?.openingBalance || 0, openingBalanceDue)
+    : 0;
+  const openingBalancePaid = Math.max(0, originalOpeningBalance - openingBalanceDue);
 
   const previousDuesSummaryList = [
     ...previousSalesWithDue.map((p) => ({
@@ -129,8 +137,8 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
           {
             invoiceNo: 'পূর্ববর্তী হিসাবের জের',
             date: customerObj?.createdAt || sale.date,
-            grandTotal: openingBalanceDue,
-            paidAmount: 0,
+            grandTotal: originalOpeningBalance,
+            paidAmount: openingBalancePaid,
             dueAmount: openingBalanceDue,
           },
         ]
@@ -579,7 +587,7 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
       `).join('')}
       ${openingBalanceDue > 0 ? `
         <div style="display: flex; justify-content: space-between; padding: 1px 0;">
-          <span>প্রারম্ভিক হিসাবের বকেয়া</span>
+          <span>প্রারম্ভিক জের (মোট: ৳${originalOpeningBalance.toLocaleString()}, জমা: ৳${openingBalancePaid.toLocaleString()})</span>
           <span class="bold">৳${openingBalanceDue.toLocaleString()}</span>
         </div>
       ` : ''}
@@ -778,8 +786,10 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
               `).join('')}
               ${openingBalanceDue > 0 ? `
                 <tr style="border-bottom: 1px dotted #fca5a5; color: #000000;">
-                  <td style="padding: 2px 0; color: #000000;">প্রারম্ভিক হিসাব</td>
-                  <td style="padding: 2px 4px; color: #000000;" colspan="3">প্রারম্ভিক হিসাবের বকেয়া (Account Opening Due)</td>
+                  <td style="padding: 2px 0; color: #000000;">${customerObj?.createdAt ? new Date(customerObj.createdAt).toLocaleDateString('en-GB') : 'প্রারম্ভিক'}</td>
+                  <td style="padding: 2px 4px; font-weight: 700; color: #000000;">পূর্বের হিসাব (Opening)</td>
+                  <td style="padding: 2px 4px; text-align: right; color: #000000;">৳ ${originalOpeningBalance.toLocaleString()}</td>
+                  <td style="padding: 2px 4px; text-align: right; color: #047857; font-weight: 600;">৳ ${openingBalancePaid.toLocaleString()}</td>
                   <td style="padding: 2px 0; text-align: right; font-weight: bold; color: #b91c1c;">৳ ${openingBalanceDue.toLocaleString()}</td>
                 </tr>
               ` : ''}
@@ -1301,8 +1311,14 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
                                   <td className="py-0.5 text-black font-mono">
                                     {customerObj?.createdAt ? formatDate(customerObj.createdAt) : 'প্রারম্ভিক'}
                                   </td>
-                                  <td className="py-0.5 px-1 font-semibold text-black" colSpan={3}>
-                                    প্রারম্ভিক হিসাবের বকেয়া (Account Opening Due)
+                                  <td className="py-0.5 px-1 font-bold text-black">
+                                    পূর্বের হিসাব (Opening)
+                                  </td>
+                                  <td className="py-0.5 px-1 text-right text-black font-mono">
+                                    {formatBDT(originalOpeningBalance)}
+                                  </td>
+                                  <td className="py-0.5 px-1 text-right text-emerald-800 font-mono font-semibold">
+                                    {formatBDT(openingBalancePaid)}
                                   </td>
                                   <td className="py-0.5 text-right font-bold text-rose-700 font-mono">
                                     {formatBDT(openingBalanceDue)}
@@ -1547,7 +1563,7 @@ const InvoiceViewModalContent: React.FC<{ sale: Sale; onClose: () => void }> = (
                     ))}
                     {openingBalanceDue > 0 && (
                       <div className="flex justify-between text-black">
-                        <span>প্রারম্ভিক হিসাবের বকেয়া</span>
+                        <span>প্রারম্ভিক জের (মোট: {formatBDT(originalOpeningBalance)}, জমা: {formatBDT(openingBalancePaid)})</span>
                         <span className="font-bold text-red-700">{formatBDT(openingBalanceDue)}</span>
                       </div>
                     )}

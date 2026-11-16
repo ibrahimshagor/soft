@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef, ReactNode } from 'react';
 import {
   ActiveTab,
   BusinessProfile,
@@ -59,6 +59,10 @@ import {
   testFirestoreConnection,
   subscribeToAuthStatus,
 } from '../services/firebase';
+import {
+  computeCustomerReconciledTotals,
+  getSaleUpfrontPaid,
+} from '../utils/customerReconciliation';
 
 interface DueReminder {
   id: string;
@@ -674,6 +678,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     error: null,
   });
 
+  // Track initial Firestore hydration of ledger-related collections before auto-reconciliation
+  const hydratedCollectionsRef = useRef({
+    customers: false,
+    sales: false,
+    paymentRecords: false,
+    loanRecords: false,
+  });
+  const firestoreReadableRef = useRef(true);
+  const [collectionsHydrated, setCollectionsHydrated] = useState(false);
+  const lastReconciledSignatureRef = useRef<Record<string, string>>({});
+
   // Listen to Firebase Auth state
   useEffect(() => {
     const unsubAuth = subscribeToAuthStatus((user, err) => {
@@ -709,6 +724,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     let isMounted = true;
 
+    const markCollectionHydrated = (key: keyof typeof hydratedCollectionsRef.current, fromSuccess: boolean) => {
+      if (!isMounted) return;
+      if (!fromSuccess) firestoreReadableRef.current = false;
+      hydratedCollectionsRef.current[key] = true;
+      const h = hydratedCollectionsRef.current;
+      if (h.customers && h.sales && h.paymentRecords && h.loanRecords) {
+        setCollectionsHydrated(true);
+      }
+    };
+
     // Listen to Products in real-time
     const unsubProducts = subscribeToCollection<Product>('products', (cloudProducts) => {
       if (isMounted && Array.isArray(cloudProducts)) {
@@ -720,19 +745,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     // Listen to Sales in real-time
-    const unsubSales = subscribeToCollection<Sale>('sales', (cloudSales) => {
-      if (isMounted && Array.isArray(cloudSales)) {
-        const sorted = [...cloudSales].sort((a, b) => {
-          const timeA = new Date(a.createdAt || a.date).getTime() || 0;
-          const timeB = new Date(b.createdAt || b.date).getTime() || 0;
-          return timeB - timeA;
-        });
-        setSales(sorted);
-        try {
-          localStorage.setItem(`${STORAGE_KEY}_sales`, JSON.stringify(sorted));
-        } catch (e) {}
-      }
-    });
+    const unsubSales = subscribeToCollection<Sale>(
+      'sales',
+      (cloudSales) => {
+        if (isMounted && Array.isArray(cloudSales)) {
+          const sorted = [...cloudSales].sort((a, b) => {
+            const timeA = new Date(a.createdAt || a.date).getTime() || 0;
+            const timeB = new Date(b.createdAt || b.date).getTime() || 0;
+            return timeB - timeA;
+          });
+          setSales(sorted);
+          try {
+            localStorage.setItem(`${STORAGE_KEY}_sales`, JSON.stringify(sorted));
+          } catch (e) {}
+          markCollectionHydrated('sales', true);
+        }
+      },
+      () => markCollectionHydrated('sales', false)
+    );
 
     // Listen to Purchases in real-time
     const unsubPurchases = subscribeToCollection<Purchase>('purchases', (cloudPurchases) => {
@@ -750,14 +780,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     // Listen to Customers in real-time
-    const unsubCustomers = subscribeToCollection<Customer>('customers', (cloudCustomers) => {
-      if (isMounted && Array.isArray(cloudCustomers)) {
-        setCustomers(cloudCustomers);
-        try {
-          localStorage.setItem(`${STORAGE_KEY}_customers`, JSON.stringify(cloudCustomers));
-        } catch (e) {}
-      }
-    });
+    const unsubCustomers = subscribeToCollection<Customer>(
+      'customers',
+      (cloudCustomers) => {
+        if (isMounted && Array.isArray(cloudCustomers)) {
+          setCustomers(cloudCustomers);
+          try {
+            localStorage.setItem(`${STORAGE_KEY}_customers`, JSON.stringify(cloudCustomers));
+          } catch (e) {}
+          markCollectionHydrated('customers', true);
+        }
+      },
+      () => markCollectionHydrated('customers', false)
+    );
 
     // Listen to Suppliers in real-time
     const unsubSuppliers = subscribeToCollection<Supplier>('suppliers', (cloudSuppliers) => {
@@ -822,24 +857,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     // Listen to Loan Records in real-time
-    const unsubLoanRecords = subscribeToCollection<LoanRecord>('loanRecords', (cloudLoanRecords) => {
-      if (isMounted && Array.isArray(cloudLoanRecords)) {
-        setLoanRecords(cloudLoanRecords);
-        try {
-          localStorage.setItem(`${STORAGE_KEY}_loan_records`, JSON.stringify(cloudLoanRecords));
-        } catch (e) {}
-      }
-    });
+    const unsubLoanRecords = subscribeToCollection<LoanRecord>(
+      'loanRecords',
+      (cloudLoanRecords) => {
+        if (isMounted && Array.isArray(cloudLoanRecords)) {
+          setLoanRecords(cloudLoanRecords);
+          try {
+            localStorage.setItem(`${STORAGE_KEY}_loan_records`, JSON.stringify(cloudLoanRecords));
+          } catch (e) {}
+          markCollectionHydrated('loanRecords', true);
+        }
+      },
+      () => markCollectionHydrated('loanRecords', false)
+    );
 
     // Listen to Payment Records in real-time
-    const unsubPayments = subscribeToCollection<PaymentRecord>('paymentRecords', (cloudPayments) => {
-      if (isMounted && Array.isArray(cloudPayments)) {
-        setPaymentRecords(cloudPayments);
-        try {
-          localStorage.setItem(`${STORAGE_KEY}_payments`, JSON.stringify(cloudPayments));
-        } catch (e) {}
-      }
-    });
+    const unsubPayments = subscribeToCollection<PaymentRecord>(
+      'paymentRecords',
+      (cloudPayments) => {
+        if (isMounted && Array.isArray(cloudPayments)) {
+          setPaymentRecords(cloudPayments);
+          try {
+            localStorage.setItem(`${STORAGE_KEY}_payments`, JSON.stringify(cloudPayments));
+          } catch (e) {}
+          markCollectionHydrated('paymentRecords', true);
+        }
+      },
+      () => markCollectionHydrated('paymentRecords', false)
+    );
 
     // Listen to Users in real-time
     const unsubUsers = subscribeToCollection<User>('users', (cloudUsers) => {
@@ -915,8 +960,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     });
 
+    // Fallback timer so offline / non-Firebase sessions still reconcile local data
+    const hydrationFallbackTimer = setTimeout(() => {
+      if (isMounted) setCollectionsHydrated(true);
+    }, 2500);
+
     return () => {
       isMounted = false;
+      clearTimeout(hydrationFallbackTimer);
       unsubProducts();
       unsubSales();
       unsubPurchases();
@@ -932,6 +983,44 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       unsubSystemState();
     };
   }, []);
+
+  // Automatically reconcile customer totals (currentDue, totalPurchased, totalPaid) against ledger sources
+  useEffect(() => {
+    if (!collectionsHydrated || customers.length === 0) return;
+
+    const updates: Customer[] = [];
+    const nextCustomers = customers.map((c) => {
+      const reconciled = computeCustomerReconciledTotals(c, sales, paymentRecords, loanRecords);
+      const dueDiff = Math.abs((Number(c.currentDue) || 0) - reconciled.currentDue);
+      const purDiff = Math.abs((Number(c.totalPurchased) || 0) - reconciled.totalPurchased);
+      const paidDiff = Math.abs((Number(c.totalPaid) || 0) - reconciled.totalPaid);
+
+      if (dueDiff > 0.01 || purDiff > 0.01 || paidDiff > 0.01) {
+        const updated: Customer = {
+          ...c,
+          totalPurchased: reconciled.totalPurchased,
+          totalPaid: reconciled.totalPaid,
+          currentDue: reconciled.currentDue,
+        };
+        updates.push(updated);
+        return updated;
+      }
+      return c;
+    });
+
+    if (updates.length > 0) {
+      setCustomers(nextCustomers);
+      if (firestoreReadableRef.current) {
+        updates.forEach((u) => {
+          const sig = `${Math.round(u.openingBalance || 0)}|${Math.round(u.totalPurchased)}|${Math.round(u.totalPaid)}|${Math.round(u.currentDue)}`;
+          if (lastReconciledSignatureRef.current[u.id] !== sig) {
+            lastReconciledSignatureRef.current[u.id] = sig;
+            setFirestoreDoc('customers', u.id, u).catch(() => {});
+          }
+        });
+      }
+    }
+  }, [collectionsHydrated, customers, sales, paymentRecords, loanRecords]);
 
   const syncAllToFirestore = async () => {
     setIsCloudSyncing(true);
@@ -1661,6 +1750,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       taxAmount: saleData.taxAmount,
       grandTotal: saleData.grandTotal,
       paidAmount: saleData.paidAmount,
+      initialPaidAmount: saleData.paidAmount,
+      allocatedFromPayments: 0,
       dueAmount,
       dueDate: saleData.dueDate,
       paymentStatus,
@@ -1772,21 +1863,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     // Apply net stock diff: stock = stock + oldQty - newQty
-    setProducts((prevProducts) =>
-      prevProducts.map((p) => {
-        const oldQty = oldQtyMap[p.id] || 0;
-        const newQty = newQtyMap[p.id] || 0;
-        const netDiff = oldQty - newQty;
-        if (netDiff !== 0) {
-          return {
-            ...p,
-            currentStock: Math.max(0, p.currentStock + netDiff),
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return p;
-      })
-    );
+    const updatedProductsMap = new Map<string, Product>();
+    products.forEach((p) => {
+      const oldQty = oldQtyMap[p.id] || 0;
+      const newQty = newQtyMap[p.id] || 0;
+      const netDiff = oldQty - newQty;
+      if (netDiff !== 0) {
+        const updP = {
+          ...p,
+          currentStock: Math.max(0, p.currentStock + netDiff),
+          updatedAt: new Date().toISOString(),
+        };
+        updatedProductsMap.set(p.id, updP);
+      }
+    });
+    if (updatedProductsMap.size > 0) {
+      setProducts((prevProducts) => prevProducts.map((p) => updatedProductsMap.get(p.id) || p));
+      updatedProductsMap.forEach((updP) => setFirestoreDoc('products', updP.id, updP));
+    }
 
     // 3. Update customer balance diff
     const oldGrandTotal = existingSale.grandTotal;
@@ -1806,37 +1900,44 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const paidDiff = updatedData.paidAmount - oldPaid;
       const dueDiff = newDue - oldDue;
 
-      setCustomers((prev) =>
-        prev.map((c) => {
-          if (c.id === existingSale.customerId) {
-            return {
-              ...c,
-              totalPurchased: Math.max(0, c.totalPurchased + grandTotalDiff),
-              totalPaid: Math.max(0, c.totalPaid + paidDiff),
-              currentDue: Math.max(0, c.currentDue + dueDiff),
-            };
-          }
-          return c;
-        })
-      );
+      const targetCustomer = customers.find((c) => c.id === existingSale.customerId);
+      if (targetCustomer) {
+        const updatedCust: Customer = {
+          ...targetCustomer,
+          totalPurchased: Math.max(0, targetCustomer.totalPurchased + grandTotalDiff),
+          totalPaid: Math.max(0, targetCustomer.totalPaid + paidDiff),
+          currentDue: Math.max(0, targetCustomer.currentDue + dueDiff),
+        };
+        setCustomers((prev) => prev.map((c) => (c.id === updatedCust.id ? updatedCust : c)));
+        setFirestoreDoc('customers', updatedCust.id, updatedCust);
+      }
     }
 
     // 4. Update account balance with paid difference
     const paidDiff = updatedData.paidAmount - oldPaid;
     if (paidDiff !== 0 && existingSale.accountId) {
-      setAccounts((prev) =>
-        prev.map((a) => {
-          if (a.id === existingSale.accountId) {
-            return { ...a, balance: a.balance + paidDiff };
-          }
-          return a;
-        })
-      );
+      const targetAcc = accounts.find((a) => a.id === existingSale.accountId);
+      if (targetAcc) {
+        const updatedAcc = { ...targetAcc, balance: targetAcc.balance + paidDiff };
+        setAccounts((prev) => prev.map((a) => (a.id === updatedAcc.id ? updatedAcc : a)));
+        setFirestoreDoc('accounts', updatedAcc.id, updatedAcc);
+      }
     }
 
-    // 5. Calculate cost & profit
+    // 5. Calculate cost & profit and preserve allocated payment tracking
     const totalCost = updatedData.items.reduce((sum, item) => sum + item.quantity * (item.costPrice || 0), 0);
     const grossProfit = Math.max(0, updatedData.grandTotal - totalCost);
+
+    const custPaymentsForSale = paymentRecords.filter(
+      (pr) => pr.type === 'customer_collection' && pr.partyId === existingSale.customerId
+    );
+    const prevUpfrontPaid = getSaleUpfrontPaid(existingSale, custPaymentsForSale);
+    const prevAllocated =
+      existingSale.allocatedFromPayments !== undefined
+        ? existingSale.allocatedFromPayments
+        : Math.max(0, existingSale.paidAmount - prevUpfrontPaid);
+    const nextAllocated = Math.min(prevAllocated, updatedData.paidAmount);
+    const nextInitialPaid = Math.max(0, updatedData.paidAmount - nextAllocated);
 
     const updatedSale: Sale = {
       ...existingSale,
@@ -1847,6 +1948,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       taxAmount: updatedData.taxAmount,
       grandTotal: updatedData.grandTotal,
       paidAmount: updatedData.paidAmount,
+      initialPaidAmount: nextInitialPaid,
+      allocatedFromPayments: nextAllocated,
       dueAmount: newDue,
       dueDate: updatedData.dueDate,
       paymentStatus,
@@ -2073,10 +2176,85 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }): PaymentRecord => {
     const customer = customers.find((c) => c.id === data.customerId);
     const targetAccount = accounts.find((a) => a.id === data.accountId);
-    const previousDue = customer ? customer.currentDue : 0;
+    const reconciled = customer
+      ? computeCustomerReconciledTotals(customer, sales, paymentRecords, loanRecords)
+      : null;
+    const previousDue = reconciled ? reconciled.currentDue : (customer ? customer.currentDue : 0);
     const newDue = Math.max(0, previousDue - data.amount);
 
     const receiptNo = 'REC-' + Date.now().toString().slice(-6);
+
+    // 1. Compute invoice & opening-balance allocations deterministically OUTSIDE state updaters (StrictMode-safe)
+    const allocations: Array<{ saleId: string; invoiceNo: string; amount: number }> = [];
+    const updatedSalesMap = new Map<string, Sale>();
+    let remainingToAdjust = data.amount;
+    let openingBalancePaid = 0;
+
+    const customerUnpaidSales = sales
+      .filter((s) => s.customerId === data.customerId && s.dueAmount > 0)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const totalInvoiceDueBefore = customerUnpaidSales.reduce((sum, s) => sum + (s.dueAmount || 0), 0);
+    const remainingOpeningDueBefore = Math.max(0, previousDue - totalInvoiceDueBefore);
+
+    const custPaymentsForSale = paymentRecords.filter(
+      (pr) => pr.type === 'customer_collection' && pr.partyId === data.customerId
+    );
+
+    const applyPaymentToSale = (s: Sale, payAmount: number): Sale => {
+      const currentUpfrontPaid = getSaleUpfrontPaid(s, custPaymentsForSale);
+      const currentAllocated =
+        s.allocatedFromPayments !== undefined
+          ? s.allocatedFromPayments
+          : Math.max(0, (s.paidAmount || 0) - currentUpfrontPaid);
+      const nextAllocated = currentAllocated + payAmount;
+      const newPaid = (s.paidAmount || 0) + payAmount;
+      const newInvoiceDue = Math.max(0, s.grandTotal - newPaid);
+      const newStatus: Sale['paymentStatus'] =
+        newInvoiceDue === 0 ? 'PAID' : newPaid > 0 ? 'PARTIALLY_PAID' : 'UNPAID';
+      return {
+        ...s,
+        paidAmount: newPaid,
+        initialPaidAmount: currentUpfrontPaid,
+        allocatedFromPayments: nextAllocated,
+        dueAmount: newInvoiceDue,
+        paymentStatus: newStatus,
+      };
+    };
+
+    if (data.refInvoiceNo) {
+      const targetSale = sales.find(
+        (s) => s.invoiceNo === data.refInvoiceNo && (!data.customerId || s.customerId === data.customerId)
+      );
+      if (targetSale && targetSale.dueAmount > 0 && remainingToAdjust > 0) {
+        const payThis = Math.min(targetSale.dueAmount, remainingToAdjust);
+        remainingToAdjust -= payThis;
+        const updatedSaleObj = applyPaymentToSale(targetSale, payThis);
+        updatedSalesMap.set(targetSale.id, updatedSaleObj);
+        allocations.push({ saleId: targetSale.id, invoiceNo: targetSale.invoiceNo, amount: payThis });
+      }
+    }
+
+    // Oldest due is opening balance before any recorded invoices
+    if (remainingToAdjust > 0 && remainingOpeningDueBefore > 0) {
+      const payOpening = Math.min(remainingOpeningDueBefore, remainingToAdjust);
+      openingBalancePaid += payOpening;
+      remainingToAdjust -= payOpening;
+    }
+
+    // Any remaining payment settles unpaid invoices from oldest to newest (FIFO)
+    if (remainingToAdjust > 0) {
+      for (const s of customerUnpaidSales) {
+        if (remainingToAdjust <= 0) break;
+        if (updatedSalesMap.has(s.id)) continue;
+        const payThis = Math.min(s.dueAmount, remainingToAdjust);
+        if (payThis > 0) {
+          remainingToAdjust -= payThis;
+          const updatedSaleObj = applyPaymentToSale(s, payThis);
+          updatedSalesMap.set(s.id, updatedSaleObj);
+          allocations.push({ saleId: s.id, invoiceNo: s.invoiceNo, amount: payThis });
+        }
+      }
+    }
 
     const record: PaymentRecord = {
       id: 'pay-' + Date.now(),
@@ -2094,16 +2272,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       accountName: targetAccount ? targetAccount.name : '',
       previousBalance: previousDue,
       newBalance: newDue,
+      openingBalancePaid: openingBalancePaid > 0 ? openingBalancePaid : undefined,
+      allocations: allocations.length > 0 ? allocations : undefined,
       notes: data.notes,
       recordedBy: currentUser?.name || 'Administrator',
       createdAt: new Date().toISOString(),
     };
 
-    // 1. Decrease Customer Due
+    // 2. Decrease Customer Due
     if (customer) {
-      const updatedCust = {
+      const updatedCust: Customer = {
         ...customer,
-        totalPaid: customer.totalPaid + data.amount,
+        totalPurchased: reconciled ? reconciled.totalPurchased : customer.totalPurchased,
+        totalPaid: (reconciled ? reconciled.totalPaid : customer.totalPaid) + data.amount,
         currentDue: newDue,
       };
       setCustomers((prev) =>
@@ -2112,7 +2293,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setFirestoreDoc('customers', customer.id, updatedCust);
     }
 
-    // 2. Increase Account Balance
+    // 3. Increase Account Balance
     if (targetAccount) {
       const updatedAcc = { ...targetAccount, balance: targetAccount.balance + data.amount };
       setAccounts((prev) =>
@@ -2121,50 +2302,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setFirestoreDoc('accounts', targetAccount.id, updatedAcc);
     }
 
-    // 3. If refInvoiceNo provided, update that specific invoice; otherwise auto-adjust customer's older due invoices (FIFO)
-    if (data.refInvoiceNo) {
-      setSales((prev) =>
-        prev.map((s) => {
-          if (s.invoiceNo === data.refInvoiceNo) {
-            const newPaid = s.paidAmount + data.amount;
-            const newInvoiceDue = Math.max(0, s.grandTotal - newPaid);
-            const newStatus: Sale['paymentStatus'] =
-              newInvoiceDue === 0 ? 'PAID' : newPaid > 0 ? 'PARTIALLY_PAID' : 'UNPAID';
-            const updatedSaleObj = {
-              ...s,
-              paidAmount: newPaid,
-              dueAmount: newInvoiceDue,
-              paymentStatus: newStatus,
-            };
-            setFirestoreDoc('sales', s.id, updatedSaleObj);
-            return updatedSaleObj;
-          }
-          return s;
-        })
-      );
-    } else {
-      let remainingToAdjust = data.amount;
-      setSales((prev) =>
-        prev.map((s) => {
-          if (s.customerId === data.customerId && s.dueAmount > 0 && remainingToAdjust > 0) {
-            const payThis = Math.min(s.dueAmount, remainingToAdjust);
-            remainingToAdjust -= payThis;
-            const newPaid = s.paidAmount + payThis;
-            const newInvoiceDue = s.dueAmount - payThis;
-            const newStatus: Sale['paymentStatus'] =
-              newInvoiceDue === 0 ? 'PAID' : 'PARTIALLY_PAID';
-            const updatedSaleObj = {
-              ...s,
-              paidAmount: newPaid,
-              dueAmount: newInvoiceDue,
-              paymentStatus: newStatus,
-            };
-            setFirestoreDoc('sales', s.id, updatedSaleObj);
-            return updatedSaleObj;
-          }
-          return s;
-        })
-      );
+    // 4. Persist allocated Sales updates
+    if (updatedSalesMap.size > 0) {
+      setSales((prev) => prev.map((s) => updatedSalesMap.get(s.id) || s));
+      updatedSalesMap.forEach((updatedSaleObj) => {
+        setFirestoreDoc('sales', updatedSaleObj.id, updatedSaleObj);
+      });
     }
 
     setPaymentRecords((prev) => [record, ...prev]);
@@ -2330,28 +2473,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     // Restock returned items
-    setProducts((prev) =>
-      prev.map((p) => {
-        const retItem = items.find((i) => i.productId === p.id);
-        if (retItem) {
-          return { ...p, currentStock: p.currentStock + retItem.quantity };
-        }
-        return p;
-      })
-    );
+    const updatedProductsMap = new Map<string, Product>();
+    products.forEach((p) => {
+      const retItem = items.find((i) => i.productId === p.id);
+      if (retItem) {
+        updatedProductsMap.set(p.id, { ...p, currentStock: p.currentStock + retItem.quantity });
+      }
+    });
+    if (updatedProductsMap.size > 0) {
+      setProducts((prev) => prev.map((p) => updatedProductsMap.get(p.id) || p));
+      updatedProductsMap.forEach((updP) => setFirestoreDoc('products', updP.id, updP));
+    }
 
     // If cash refund, deduct from account
     if (refundType === 'cash_refund' && accountId) {
-      setAccounts((prev) =>
-        prev.map((a) => (a.id === accountId ? { ...a, balance: a.balance - totalRefund } : a))
-      );
-    } else if (refundType === 'adjust_due') {
+      const targetAcc = accounts.find((a) => a.id === accountId);
+      if (targetAcc) {
+        const updatedAcc = { ...targetAcc, balance: targetAcc.balance - totalRefund };
+        setAccounts((prev) => prev.map((a) => (a.id === accountId ? updatedAcc : a)));
+        setFirestoreDoc('accounts', accountId, updatedAcc);
+      }
+    } else if (refundType === 'adjust_due' && sale.customerId && sale.customerId !== 'walk-in') {
       // Adjust customer's total due
-      setCustomers((prev) =>
-        prev.map((c) =>
-          c.id === sale.customerId ? { ...c, currentDue: Math.max(0, c.currentDue - totalRefund) } : c
-        )
-      );
+      const targetCust = customers.find((c) => c.id === sale.customerId);
+      if (targetCust) {
+        const updatedCust: Customer = {
+          ...targetCust,
+          totalPurchased: Math.max(0, targetCust.totalPurchased - totalRefund),
+          currentDue: Math.max(0, targetCust.currentDue - totalRefund),
+        };
+        setCustomers((prev) => prev.map((c) => (c.id === updatedCust.id ? updatedCust : c)));
+        setFirestoreDoc('customers', updatedCust.id, updatedCust);
+      }
     }
 
     // UPDATE THE ORIGINAL SALE WITH ADJUSTED ITEMS, TOTALS & RETURN BADGE
@@ -2387,6 +2540,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       newPaid = Math.max(0, sale.paidAmount - totalRefund);
     }
 
+    const custPaymentsForSale = paymentRecords.filter(
+      (pr) => pr.type === 'customer_collection' && pr.partyId === sale.customerId
+    );
+    const prevUpfrontPaid = getSaleUpfrontPaid(sale, custPaymentsForSale);
+    const paidReduction = Math.max(0, sale.paidAmount - newPaid);
+    const nextInitialPaid = Math.max(0, prevUpfrontPaid - paidReduction);
+    const nextAllocated = Math.max(0, newPaid - nextInitialPaid);
+
     const newPaymentStatus: Sale['paymentStatus'] =
       newDue <= 0 ? 'PAID' : newPaid > 0 ? 'PARTIALLY_PAID' : 'UNPAID';
 
@@ -2398,6 +2559,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       subtotal: newSubtotal,
       grandTotal: newGrandTotal,
       paidAmount: newPaid,
+      initialPaidAmount: nextInitialPaid,
+      allocatedFromPayments: nextAllocated,
       dueAmount: newDue,
       paymentStatus: newPaymentStatus,
       isAdjustedAfterReturn: true,
@@ -2410,6 +2573,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     setSales((prev) => prev.map((s) => (s.id === sale.id ? updatedSale : s)));
+    setFirestoreDoc('sales', updatedSale.id, updatedSale);
     setSelectedInvoice(updatedSale);
 
     setSalesReturns((prev) => [returnRecord, ...prev]);
@@ -2825,7 +2989,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     sales.forEach((s) => {
       if (s.date.startsWith(todayStr)) {
         todaySales += s.grandTotal;
-        todayCollection += s.paidAmount;
+        const custPays = paymentRecords.filter(
+          (pr) => pr.type === 'customer_collection' && pr.partyId === s.customerId
+        );
+        todayCollection += getSaleUpfrontPaid(s, custPays);
         todayGrossProfit += s.grossProfit;
       }
     });
@@ -3172,9 +3339,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const transactions: Transaction[] = useMemo(() => {
     const list: Transaction[] = [];
 
-    // 1. Sales payments
+    // 1. Sales upfront payments (excluding later due collections tracked in paymentRecords)
     sales.forEach((s) => {
-      if (s.paidAmount > 0) {
+      const custPays = paymentRecords.filter(
+        (pr) => pr.type === 'customer_collection' && pr.partyId === s.customerId
+      );
+      const upfrontPaid = getSaleUpfrontPaid(s, custPays);
+      if (upfrontPaid > 0) {
         const acc = accounts.find((a) => a.id === s.accountId);
         list.push({
           id: 'tx-sale-' + s.id,
@@ -3183,7 +3354,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           flow: 'in',
           accountId: s.accountId,
           accountName: acc?.name || 'Counter Cash',
-          amount: s.paidAmount,
+          amount: upfrontPaid,
           description: `Invoice #${s.invoiceNo} receipt (${s.customerName})`,
           creatorName: s.sellerName,
           relatedEntityId: s.customerId,

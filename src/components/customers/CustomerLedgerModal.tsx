@@ -13,9 +13,10 @@ import {
   Image as ImageIcon,
   Loader2,
 } from 'lucide-react';
-import { Customer, Transaction } from '../../types';
+import { Customer } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { formatBDT, formatDate, sanitizePhoneNumber } from '../../utils/formatters';
+import { computeCustomerReconciledTotals, getSaleUpfrontPaid } from '../../utils/customerReconciliation';
 import {
   printHtmlViaIframe,
   downloadElementAsPdf,
@@ -31,7 +32,7 @@ export const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
   customer,
   onClose,
 }) => {
-  const { sales, transactions, businessProfile, language } = useApp();
+  const { sales, paymentRecords, loanRecords, customers, businessProfile } = useApp();
 
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isDownloadingImage, setIsDownloadingImage] = useState(false);
@@ -39,24 +40,44 @@ export const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
 
   if (!customer) return null;
 
-  // Filter sales & transactions for this customer
-  const custSales = sales.filter((s) => s.customerId === customer.id);
-  const custTx = transactions.filter((t: Transaction) => t.relatedEntityId === customer.id);
+  // Always resolve latest live customer record from context
+  const liveCustomer = customers.find((c) => c.id === customer.id) || customer;
+
+  // Filter sales, payment collections & customer loans for this customer
+  const custSales = sales.filter((s) => s.customerId === liveCustomer.id);
+  const custPayments = paymentRecords.filter(
+    (pr) => pr.type === 'customer_collection' && pr.partyId === liveCustomer.id
+  );
+  const custLoans = loanRecords.filter(
+    (lr) =>
+      lr.customerId === liveCustomer.id ||
+      (lr.partyType === 'customer' && lr.partyId === liveCustomer.id)
+  );
+
+  // Reconciled totals ensure no double-counting of allocated payments
+  const reconciled = computeCustomerReconciledTotals(
+    liveCustomer,
+    sales,
+    paymentRecords,
+    loanRecords
+  );
 
   // Construct combined statement rows
   type LedgerRow = {
     date: string;
-    type: 'INVOICE' | 'PAYMENT' | 'RETURN';
+    type: 'OPENING' | 'INVOICE' | 'PAYMENT' | 'LOAN' | 'RETURN';
     ref: string;
-    debit: number; // Invoiced (+)
+    debit: number; // Invoiced / Opening (+)
     credit: number; // Paid (-)
     description: string;
   };
 
-  const rows: LedgerRow[] = [];
+  const txRows: LedgerRow[] = [];
+  const totalPaymentRecordsSum = custPayments.reduce((sum, pr) => sum + (Number(pr.amount) || 0), 0);
+  let remainingUpfrontBudget = Math.max(0, reconciled.totalPaid - totalPaymentRecordsSum);
 
   custSales.forEach((s) => {
-    rows.push({
+    txRows.push({
       date: s.date,
       type: 'INVOICE',
       ref: s.invoiceNo,
@@ -64,39 +85,79 @@ export const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
       credit: 0,
       description: `Sales Invoice #${s.invoiceNo} (${s.items.length} items)`,
     });
-    if (s.paidAmount > 0) {
-      rows.push({
+    const rawUpfront = getSaleUpfrontPaid(s, custPayments);
+    const upfrontPaid = Math.min(rawUpfront, remainingUpfrontBudget);
+    remainingUpfrontBudget = Math.max(0, remainingUpfrontBudget - upfrontPaid);
+    if (upfrontPaid > 0) {
+      txRows.push({
         date: s.date,
         type: 'PAYMENT',
         ref: `PAY-${s.invoiceNo}`,
         debit: 0,
-        credit: s.paidAmount,
-        description: `Payment received for Invoice #${s.invoiceNo}`,
+        credit: upfrontPaid,
+        description: `Invoice #${s.invoiceNo} পরিশোধ (Upfront Payment)`,
       });
     }
   });
 
-  // Additional standalone payment collections
-  custTx
-    .filter((tx: Transaction) => tx.type === 'customer_due_collection')
-    .forEach((tx: Transaction) => {
-      rows.push({
-        date: tx.date,
-        type: 'PAYMENT',
-        ref: tx.id,
-        debit: 0,
-        credit: tx.amount,
-        description: tx.description || 'Due balance payment received',
-      });
+  // Standalone due collections from PaymentRecords
+  custPayments.forEach((pr) => {
+    txRows.push({
+      date: pr.date,
+      type: 'PAYMENT',
+      ref: pr.receiptNo || pr.id,
+      debit: 0,
+      credit: pr.amount,
+      description: pr.notes
+        ? `${pr.notes} (রশিদ #${pr.receiptNo})`
+        : `বকেয়া আদায় (রশিদ #${pr.receiptNo})`,
     });
+  });
 
-  // Sort by date ascending
-  rows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  // Customer loan entries if any
+  custLoans.forEach((lr) => {
+    if (lr.type === 'lend') {
+      txRows.push({
+        date: lr.date,
+        type: 'LOAN',
+        ref: lr.voucherNo,
+        debit: lr.amount,
+        credit: 0,
+        description: `ধার / লোন প্রদান (#${lr.voucherNo})`,
+      });
+    } else if (lr.type === 'collect_lend') {
+      txRows.push({
+        date: lr.date,
+        type: 'PAYMENT',
+        ref: lr.voucherNo,
+        debit: 0,
+        credit: lr.amount,
+        description: `লোন / ধার আদায় (#${lr.voucherNo})`,
+      });
+    }
+  });
 
-  // Compute running balance
-  let running = customer.openingBalance || 0;
+  // Sort transaction rows by date ascending
+  txRows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  // Prepend Opening Balance row if > 0 so statement visibly starts from opening due
+  const rows: LedgerRow[] = [];
+  if ((liveCustomer.openingBalance || 0) > 0) {
+    rows.push({
+      date: liveCustomer.createdAt || new Date().toISOString(),
+      type: 'OPENING',
+      ref: 'OPENING',
+      debit: liveCustomer.openingBalance,
+      credit: 0,
+      description: 'প্রারম্ভিক বকেয়া জের (Previous / Opening Balance)',
+    });
+  }
+  rows.push(...txRows);
+
+  // Compute running balance starting from 0 since OPENING row carries openingBalance
+  let running = 0;
   const ledgerWithBalance = rows.map((r) => {
-    running = running + r.debit - r.credit;
+    running = Math.max(0, running + r.debit - r.credit);
     return { ...r, runningBalance: running };
   });
 
@@ -107,7 +168,7 @@ export const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Customer_Ledger_${customer.name.replace(/[^a-zA-Z0-9_-]/g, '_')}</title>
+  <title>Customer_Ledger_${liveCustomer.name.replace(/[^a-zA-Z0-9_-]/g, '_')}</title>
   <style>
     @page { size: A4 portrait; margin: 10mm; }
     * { box-sizing: border-box; }
@@ -124,6 +185,7 @@ export const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
     td { border-bottom: 1px solid #e2e8f0; padding: 6px 8px; }
     .text-right { text-align: right; }
     .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; }
+    .badge-opening { background: #fef3c7; color: #92400e; }
     .badge-invoice { background: #dbeafe; color: #1e40af; }
     .badge-payment { background: #dcfce7; color: #15803d; }
     .footer { margin-top: 25px; padding-top: 15px; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; font-size: 10px; color: #64748b; }
@@ -147,20 +209,20 @@ export const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
   <div class="summary-grid">
     <div class="summary-item">
       <div>Customer Info</div>
-      <div class="summary-val">${customer.name}</div>
-      <div style="font-size: 9px; color: #64748b;">${customer.phone || 'No phone'}</div>
+      <div class="summary-val">${liveCustomer.name}</div>
+      <div style="font-size: 9px; color: #64748b;">${liveCustomer.phone || 'No phone'}</div>
     </div>
     <div class="summary-item">
       <div>Total Purchases</div>
-      <div class="summary-val">${formatBDT(customer.totalPurchased)}</div>
+      <div class="summary-val">${formatBDT(reconciled.totalPurchased)}</div>
     </div>
     <div class="summary-item">
       <div>Total Paid</div>
-      <div class="summary-val" style="color: #15803d;">${formatBDT(customer.totalPaid)}</div>
+      <div class="summary-val" style="color: #15803d;">${formatBDT(reconciled.totalPaid)}</div>
     </div>
     <div class="summary-item">
       <div>Current Outstanding Due</div>
-      <div class="due-val">${formatBDT(customer.currentDue)}</div>
+      <div class="due-val">${formatBDT(reconciled.currentDue)}</div>
     </div>
   </div>
 
@@ -181,7 +243,7 @@ export const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
       ` : ledgerWithBalance.map(r => `
         <tr>
           <td>${formatDate(r.date)}</td>
-          <td><span class="badge ${r.type === 'INVOICE' ? 'badge-invoice' : 'badge-payment'}">${r.type}</span></td>
+          <td><span class="badge ${r.type === 'OPENING' ? 'badge-opening' : r.type === 'INVOICE' || r.type === 'LOAN' ? 'badge-invoice' : 'badge-payment'}">${r.type}</span></td>
           <td>${r.description}</td>
           <td class="text-right" style="font-weight: 700;">${r.debit > 0 ? formatBDT(r.debit) : '—'}</td>
           <td class="text-right" style="font-weight: 700; color: #15803d;">${r.credit > 0 ? formatBDT(r.credit) : '—'}</td>
@@ -210,13 +272,16 @@ export const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
   };
 
   const handleShareWhatsApp = () => {
-    const phone = sanitizePhoneNumber(customer.whatsappNumber || customer.phone);
+    const phone = sanitizePhoneNumber(liveCustomer.whatsappNumber || liveCustomer.phone);
     if (!phone) {
       alert('No WhatsApp phone number registered for this customer.');
       return;
     }
 
-    const message = `*ACCOUNT STATEMENT - ${businessProfile.businessName}*\nCustomer: ${customer.name}\nTotal Purchases: ${formatBDT(customer.totalPurchased)}\nTotal Paid: ${formatBDT(customer.totalPaid)}\n*Current Outstanding Balance: ${formatBDT(customer.currentDue)}*\nKindly contact us for any query.\n📞 ${businessProfile.phone}`;
+    const openingLine = (liveCustomer.openingBalance || 0) > 0
+      ? `Previous Opening Due: ${formatBDT(liveCustomer.openingBalance)}\n`
+      : '';
+    const message = `*ACCOUNT STATEMENT - ${businessProfile.businessName}*\nCustomer: ${liveCustomer.name}\n${openingLine}Total Purchases: ${formatBDT(reconciled.totalPurchased)}\nTotal Paid: ${formatBDT(reconciled.totalPaid)}\n*Current Outstanding Balance: ${formatBDT(reconciled.currentDue)}*\nKindly contact us for any query.\n📞 ${businessProfile.phone}`;
 
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
@@ -273,10 +338,10 @@ export const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
             <User className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 shrink-0" />
             <div className="min-w-0 flex-1">
               <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
-                {customer.name}
+                {liveCustomer.name}
               </h3>
               <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate sm:hidden">
-                {customer.phone || 'কাস্টমার লেজার খতিয়ান'}
+                {liveCustomer.phone || 'কাস্টমার লেজার খতিয়ান'}
               </p>
             </div>
           </div>
@@ -366,26 +431,30 @@ export const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
             <div className="p-2.5 sm:p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 col-span-2 sm:col-span-1">
               <span className="text-[10px] font-bold text-slate-400 uppercase block">Customer Details</span>
-              <div className="font-extrabold text-slate-900 dark:text-white text-xs sm:text-sm mt-0.5 truncate">{customer.name}</div>
-              <div className="text-slate-500 mt-0.5">{customer.phone}</div>
-              <div className="text-slate-400 text-[10px] truncate">{customer.address || 'Dhaka, Bangladesh'}</div>
+              <div className="font-extrabold text-slate-900 dark:text-white text-xs sm:text-sm mt-0.5 truncate">{liveCustomer.name}</div>
+              <div className="text-slate-500 mt-0.5">{liveCustomer.phone}</div>
+              <div className="text-slate-400 text-[10px] truncate">{liveCustomer.address || 'Dhaka, Bangladesh'}</div>
             </div>
 
             <div className="p-2.5 sm:p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
               <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Purchases</span>
-              <div className="font-black text-slate-900 dark:text-white text-sm sm:text-base mt-0.5">{formatBDT(customer.totalPurchased)}</div>
-              <span className="text-[9px] sm:text-[10px] text-slate-500">Lifetime volume</span>
+              <div className="font-black text-slate-900 dark:text-white text-sm sm:text-base mt-0.5">{formatBDT(reconciled.totalPurchased)}</div>
+              <span className="text-[9px] sm:text-[10px] text-slate-500">
+                {(liveCustomer.openingBalance || 0) > 0
+                  ? `Opening Due: ${formatBDT(liveCustomer.openingBalance)}`
+                  : 'Lifetime volume'}
+              </span>
             </div>
 
             <div className="p-2.5 sm:p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
               <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Paid</span>
-              <div className="font-black text-emerald-600 dark:text-emerald-400 text-sm sm:text-base mt-0.5">{formatBDT(customer.totalPaid)}</div>
+              <div className="font-black text-emerald-600 dark:text-emerald-400 text-sm sm:text-base mt-0.5">{formatBDT(reconciled.totalPaid)}</div>
               <span className="text-[9px] sm:text-[10px] text-slate-500">Cleared receipts</span>
             </div>
 
             <div className="p-2.5 sm:p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 col-span-2 sm:col-span-1">
               <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase block">Current Due (মোট দেনা)</span>
-              <div className="font-black text-rose-600 dark:text-rose-400 text-base sm:text-lg mt-0.5">{formatBDT(customer.currentDue)}</div>
+              <div className="font-black text-rose-600 dark:text-rose-400 text-base sm:text-lg mt-0.5">{formatBDT(reconciled.currentDue)}</div>
               <span className="text-[9px] sm:text-[10px] text-slate-500">Pending receivable</span>
             </div>
           </div>
@@ -413,12 +482,20 @@ export const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                     </span>
                     <span
                       className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
-                        item.type === 'INVOICE'
+                        item.type === 'OPENING'
+                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                          : item.type === 'INVOICE' || item.type === 'LOAN'
                           ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
                           : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                       }`}
                     >
-                      {item.type === 'INVOICE' ? 'ইনভয়েস বিল' : 'পেমেন্ট জমা'}
+                      {item.type === 'OPENING'
+                        ? 'প্রারম্ভিক জের'
+                        : item.type === 'INVOICE'
+                        ? 'ইনভয়েস বিল'
+                        : item.type === 'LOAN'
+                        ? 'ধার/লোন'
+                        : 'পেমেন্ট জমা'}
                     </span>
                   </div>
 
@@ -480,7 +557,9 @@ export const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                       <td className="py-2.5 px-3">
                         <span
                           className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                            item.type === 'INVOICE'
+                            item.type === 'OPENING'
+                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                              : item.type === 'INVOICE' || item.type === 'LOAN'
                               ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
                               : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                           }`}
